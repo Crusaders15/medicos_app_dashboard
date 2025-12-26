@@ -4,9 +4,9 @@ import pandas as pd
 import plotly.express as px
 
 # --- PAGE CONFIG ---
-st.set_page_config(page_title="Ramp-Up: Intelligence Dashboard #JoseAntonioLovers", layout="wide")
+st.set_page_config(page_title="Ramp-Up: Intelligence Dashboard", layout="wide")
 
-st.title("🏛️ Ramp-Up: Market Intelligence #JoseAntonioLovers")
+st.title("🚀 Ramp-Up: Market Intelligence")
 
 # --- CONNECT TO DATA (R2) ---
 @st.cache_resource
@@ -26,8 +26,10 @@ def get_connection():
     """)
     return con
 
-# Define the remote URL securely
-REMOTE_URL = "s3://compra-agil-data/CA_2025.csv"
+# --- DEFINING THE SOURCE (The Fix 🛠️) ---
+# We use read_csv to handle the Chilean format (Semicolons + Latin-1 Encoding)
+CSV_FILE = "s3://compra-agil-data/CA_2025.csv"
+REMOTE_TABLE = f"read_csv('{CSV_FILE}', delim=';', header=True, encoding='latin-1', ignore_errors=True)"
 
 try:
     con = get_connection()
@@ -42,7 +44,8 @@ tab1, tab2, tab3 = st.tabs(["📊 Market Overview", "🕵️ Profile Detective",
 with tab1:
     st.markdown("### Market Distribution")
     if st.button("🔄 Load Regional Data"):
-        query_geo = f"SELECT Region, COUNT(*) as Total FROM '{REMOTE_URL}' GROUP BY Region ORDER BY Total DESC"
+        # Note: We use {REMOTE_TABLE} without quotes now
+        query_geo = f"SELECT RegionUnidadCompra as Region, COUNT(*) as Total FROM {REMOTE_TABLE} GROUP BY Region ORDER BY Total DESC"
         with st.spinner("Analyzing data..."):
             try:
                 df_geo = con.execute(query_geo).df()
@@ -60,10 +63,11 @@ with tab2:
     limit = col_limit.number_input("Max Results", value=50)
 
     if search_term:
+        # We search in DescripcionItem or NombreItem (adjusted for standard column names)
         detective_query = f"""
-            SELECT * FROM '{REMOTE_URL}' 
-            WHERE descripcion ILIKE '%{search_term}%' 
-            OR titulo ILIKE '%{search_term}%'
+            SELECT * FROM {REMOTE_TABLE} 
+            WHERE DescripcionItem ILIKE '%{search_term}%' 
+            OR NombreItem ILIKE '%{search_term}%'
             LIMIT {limit}
         """
         with st.spinner(f"Hunting for '{search_term}'..."):
@@ -77,11 +81,10 @@ with tab2:
 # === TAB 3: EXTRACTOR ===
 with tab3:
     st.markdown("### 📥 Extract Codes")
-    custom_sql = st.text_area("Custom SQL", value=f"SELECT * FROM '{REMOTE_URL}' LIMIT 5")
+    custom_sql = st.text_area("Custom SQL", value=f"SELECT * FROM {REMOTE_TABLE} LIMIT 5")
     if st.button("Run Custom SQL"):
         try:
             df_custom = con.execute(custom_sql).df()
             st.dataframe(df_custom)
         except Exception as e:
-
             st.error(f"Error: {e}")
