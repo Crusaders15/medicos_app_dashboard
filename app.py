@@ -4,7 +4,7 @@ import pandas as pd
 import plotly.express as px
 
 # --- PAGE CONFIG ---
-st.set_page_config(page_title="Ramp-Up: Intelligence Dashboard" #JoseAntonioLovers, layout="wide")
+st.set_page_config(page_title="Ramp-Up: Intelligence Dashboard", layout="wide")
 
 st.title("Ramp-Up: Market Intelligence #JoseAntonioLovers")
 
@@ -88,4 +88,5 @@ with tab3:
             st.dataframe(df_custom)
         except Exception as e:
             st.error(f"Error: {e}")
+
 
