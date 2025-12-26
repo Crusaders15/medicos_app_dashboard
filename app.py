@@ -4,9 +4,9 @@ import pandas as pd
 import plotly.express as px
 
 # --- PAGE CONFIG ---
-st.set_page_config(page_title="LicitaKiller: Intelligence Dashboard", layout="wide")
+st.set_page_config(page_title="Ramp-Up: Intelligence Dashboard #JoseAntonioLovers", layout="wide")
 
-st.title("🏛️ LicitaKiller: Market Intelligence")
+st.title("🏛️ Ramp-Up: Market Intelligence #JoseAntonioLovers")
 
 # --- CONNECT TO DATA (R2) ---
 @st.cache_resource
@@ -83,4 +83,5 @@ with tab3:
             df_custom = con.execute(custom_sql).df()
             st.dataframe(df_custom)
         except Exception as e:
+
             st.error(f"Error: {e}")
