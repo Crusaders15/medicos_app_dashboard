@@ -6,7 +6,7 @@ import plotly.express as px
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="Ramp-Up: Intelligence Dashboard", layout="wide")
 
-st.title("Ramp-Up: Market Intelligence #JoseAntonioLovers")
+st.title("Ramp-Up: Market Intelligence HashtagJoseAntonioLovers")
 
 # --- CONNECT TO DATA (R2) ---
 @st.cache_resource
@@ -88,5 +88,6 @@ with tab3:
             st.dataframe(df_custom)
         except Exception as e:
             st.error(f"Error: {e}")
+
 
 
