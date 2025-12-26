@@ -4,9 +4,9 @@ import pandas as pd
 import plotly.express as px
 
 # --- PAGE CONFIG ---
-st.set_page_config(page_title="Ramp-Up: Intelligence Dashboard", layout="wide")
+st.set_page_config(page_title="Ramp-Up: Intelligence Dashboard" #JoseAntonioLovers, layout="wide")
 
-st.title("🚀 Ramp-Up: Market Intelligence")
+st.title("Ramp-Up: Market Intelligence #JoseAntonioLovers")
 
 # --- CONNECT TO DATA (R2) ---
 @st.cache_resource
@@ -26,7 +26,7 @@ def get_connection():
     """)
     return con
 
-# --- DEFINING THE SOURCE (The Fix 🛠️) ---
+# --- DEFINING THE SOURCE (The Fix) ---
 # We use read_csv to handle the Chilean format (Semicolons + Latin-1 Encoding)
 CSV_FILE = "s3://compra-agil-data/CA_2025.csv"
 REMOTE_TABLE = f"read_csv('{CSV_FILE}', delim=';', header=True, encoding='latin-1', ignore_errors=True)"
@@ -56,7 +56,7 @@ with tab1:
 
 # === TAB 2: THE DETECTIVE ===
 with tab2:
-    st.markdown("### 🕵️ Find Hidden Professionals")
+    st.markdown("###Find Hidden Professionals")
     st.info("Search descriptions for specific terms.")
     col_search, col_limit = st.columns([3, 1])
     search_term = col_search.text_input("Search Keyword", placeholder="e.g., Salud Mental")
@@ -80,7 +80,7 @@ with tab2:
 
 # === TAB 3: EXTRACTOR ===
 with tab3:
-    st.markdown("### 📥 Extract Codes")
+    st.markdown("### Extract Codes")
     custom_sql = st.text_area("Custom SQL", value=f"SELECT * FROM {REMOTE_TABLE} LIMIT 5")
     if st.button("Run Custom SQL"):
         try:
@@ -88,3 +88,4 @@ with tab3:
             st.dataframe(df_custom)
         except Exception as e:
             st.error(f"Error: {e}")
+
