@@ -5,7 +5,32 @@ import plotly.express as px
 
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="Ramp-Up: Intelligence Dashboard", layout="wide")
-st.title("🚀 Ramp-Up: Market Intelligence")
+
+# --- CSS MAGIC (Background) 🎨 ---
+def set_background_image():
+    bg_url = "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop"
+    st.markdown(
+         f"""
+         <style>
+         .stApp {{
+             background-image: url("{bg_url}");
+             background-attachment: fixed;
+             background-size: cover;
+             background-color: rgba(0,0,0,0.8);
+             background-blend-mode: darken;
+         }}
+         [data-testid="stHeader"] {{ background-color: rgba(0,0,0,0.0); }}
+         /* Make sidebar semi-transparent */
+         section[data-testid="stSidebar"] {{
+             background-color: rgba(0, 0, 0, 0.5);
+         }}
+         </style>
+         """,
+         unsafe_allow_html=True
+     )
+set_background_image()
+
+st.markdown("<h1 style='text-align: center; color: white;'>🚀 Ramp-Up: Interactive Intelligence</h1>", unsafe_allow_html=True)
 
 # --- CONNECT TO DATA (R2) ---
 @st.cache_resource
@@ -24,126 +49,111 @@ def get_connection():
     """)
     return con
 
-# --- SOURCE DEFINITION ---
-CSV_FILE = "s3://compra-agil-data/CA_2025.csv"
-REMOTE_TABLE = f"read_csv('{CSV_FILE}', delim=';', header=True, encoding='cp1252', ignore_errors=True)"
-
 try:
     con = get_connection()
 except Exception as e:
     st.error(f"Connection Failed: {e}")
 
-# --- TABS ---
-tab1, tab2, tab3, tab4 = st.tabs(["📊 Market Overview", "🏆 Top Winners", "🕵️ Profile Detective", "📥 Data Extractor"])
+# --- SOURCE DEFINITION ---
+CSV_FILE = "s3://compra-agil-data/CA_2025.csv"
+REMOTE_TABLE = f"read_csv('{CSV_FILE}', delim=';', header=True, encoding='cp1252', ignore_errors=True)"
 
-# === TAB 1: MARKET OVERVIEW (The Big Picture) ===
+# ==========================================
+# 🧠 THE BRAIN: GLOBAL FILTERS (SIDEBAR)
+# ==========================================
+st.sidebar.header("🔍 Global Slicers")
+st.sidebar.info("Adjust these filters to slice the entire dashboard.")
+
+# 1. Region Slicer
+# (We hardcode the list for speed, querying 2GB for this list every time is slow)
+region_options = ["All Regions", "Region Metropolitana de Santiago", "Region de Valparaiso", "Region del Biobio", "Region de Antofagasta", "Region de La Araucania", "Region de Los Lagos"]
+selected_region = st.sidebar.selectbox("📍 Region", region_options)
+
+# 2. Category Keyword Slicer
+selected_keyword = st.sidebar.text_input("📦 Category/Product (Keyword)", placeholder="e.g. Computacion")
+
+# --- QUERY BUILDER FUNCTION ---
+# This function injects the sidebar filters into ANY query we write below
+def apply_filters(base_sql):
+    if selected_region != "All Regions":
+        base_sql += f" AND RegionUnidadCompra = '{selected_region}'"
+    if selected_keyword:
+        base_sql += f" AND (RubroN1 ILIKE '%{selected_keyword}%' OR DescripcionOC ILIKE '%{selected_keyword}%')"
+    return base_sql
+
+# ==========================================
+# 📊 THE TABS
+# ==========================================
+tab1, tab2, tab3 = st.tabs(["🧮 Super Pivot (New!)", "🏆 Leaderboards", "🕵️ Detail Detective"])
+
+# === TAB 1: SUPER PIVOT (The Excel Killer) ===
 with tab1:
+    st.markdown("### 🧮 Slice & Dice")
+    st.caption("Group the data dynamically. No formulas needed.")
+    
+    col_group, col_viz = st.columns([1, 3])
+    
+    with col_group:
+        st.markdown("**1. Group By:**")
+        # Let the user choose the "Dimension"
+        dimension = st.radio("Choose Axis:", 
+                             ["RegionUnidadCompra", "Institucion", "Proveedor", "RubroN1"],
+                             index=0)
+        
+        st.markdown("**2. Metric:**")
+        # We stick to Count for now (Safest on raw CSV)
+        metric_label = "Volume (Total Tenders)"
+    
+    with col_viz:
+        # Build the Dynamic Query
+        base_query = f"SELECT {dimension} as GroupName, COUNT(*) as Total FROM {REMOTE_TABLE} WHERE 1=1"
+        filtered_query = apply_filters(base_query) # <--- MAGIC HAPPENS HERE
+        final_query = filtered_query + " GROUP BY GroupName ORDER BY Total DESC LIMIT 15"
+        
+        with st.spinner("Pivoting data..."):
+            df_pivot = con.execute(final_query).df()
+            
+            # Interactive Chart
+            fig = px.bar(df_pivot, x='GroupName', y='Total', 
+                         title=f"{metric_label} by {dimension}",
+                         color='Total',
+                         text_auto=True)
+            fig.update_layout(template="plotly_dark", paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+            st.plotly_chart(fig, use_container_width=True)
+
+# === TAB 2: LEADERBOARDS (Cross-Filtered) ===
+with tab2:
+    st.markdown(f"### 🏆 Top Players (Filtered: {selected_region})")
+    
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown("### 🌎 Tenders by Region")
-        if st.button("🔄 Load Regional Data"):
-            query_geo = f"""
-                SELECT RegionUnidadCompra as Region, COUNT(*) as Total 
-                FROM {REMOTE_TABLE} 
-                GROUP BY Region ORDER BY Total DESC
-            """
-            with st.spinner("Crunching numbers..."):
-                df_geo = con.execute(query_geo).df()
-                fig = px.bar(df_geo, x='Region', y='Total', color='Total')
-                st.plotly_chart(fig, use_container_width=True)
-
+        st.markdown("**Top Suppliers**")
+        sql_suppliers = f"SELECT Proveedor, COUNT(*) as Wins FROM {REMOTE_TABLE} WHERE 1=1"
+        sql_suppliers = apply_filters(sql_suppliers) + " GROUP BY Proveedor ORDER BY Wins DESC LIMIT 10"
+        
+        df_supp = con.execute(sql_suppliers).df()
+        st.dataframe(df_supp, use_container_width=True)
+        
     with col2:
-        st.markdown("### 🛠️ Top Specialties (Rubros)")
-        if st.button("🔄 Load Specialties"):
-            # We look at 'RubroN1' (Broad Category) or 'RubroN3' (Specific)
-            query_rubro = f"""
-                SELECT RubroN1 as Specialty, COUNT(*) as Total 
-                FROM {REMOTE_TABLE} 
-                GROUP BY Specialty ORDER BY Total DESC LIMIT 10
-            """
-            with st.spinner("Analyzing specialties..."):
-                df_rubro = con.execute(query_rubro).df()
-                fig2 = px.pie(df_rubro, values='Total', names='Specialty', title="Top 10 Categories")
-                st.plotly_chart(fig2, use_container_width=True)
+        st.markdown("**Top Buyers (Institutions)**")
+        sql_buyers = f"SELECT Institucion, COUNT(*) as Buys FROM {REMOTE_TABLE} WHERE 1=1"
+        sql_buyers = apply_filters(sql_buyers) + " GROUP BY Institucion ORDER BY Buys DESC LIMIT 10"
+        
+        df_buy = con.execute(sql_buyers).df()
+        st.dataframe(df_buy, use_container_width=True)
 
-# === TAB 2: TOP WINNERS (What Felipe Asked For) ===
-with tab2:
-    st.markdown("### 🏆 Who is winning the contracts?")
-    st.info("This list shows the suppliers with the most won tenders.")
-    
-    if st.button("Show Leaderboard"):
-        query_winners = f"""
-            SELECT Proveedor, RegionProveedor, COUNT(*) as Wins 
-            FROM {REMOTE_TABLE} 
-            GROUP BY Proveedor, RegionProveedor
-            ORDER BY Wins DESC LIMIT 20
-        """
-        with st.spinner("Calculating leaderboard..."):
-            df_winners = con.execute(query_winners).df()
-            st.dataframe(df_winners, use_container_width=True)
-
-# === TAB 3: THE DETECTIVE (Text Search) ===
+# === TAB 3: DETAIL DETECTIVE ===
 with tab3:
-    st.markdown("### 🕵️ Find Hidden Professionals")
-    st.info("Find 'Psicologos' or 'TENS' hidden in descriptions.")
+    st.markdown("### 🕵️ Deep Dive")
+    st.write("This table shows the raw data matching your filters.")
     
-    search_term = st.text_input("Search Keyword", placeholder="e.g., Salud Mental")
+    limit_slider = st.slider("Rows to show", 10, 1000, 50)
     
-    if search_term:
-        detective_query = f"""
-            SELECT codigoOC, NombreOC, DescripcionOC, MontoTotalOC, RegionUnidadCompra
-            FROM {REMOTE_TABLE} 
-            WHERE DescripcionOC ILIKE '%{search_term}%' 
-            OR NombreOC ILIKE '%{search_term}%'
-            LIMIT 50
-        """
-        with st.spinner(f"Hunting for '{search_term}'..."):
-            results = con.execute(detective_query).df()
-            st.dataframe(results)
-
-# === TAB 4: DATA EXTRACTOR (No Code!) ===
-with tab4:
-    st.markdown("### 📥 Easy Data Downloader")
-    st.write("Filter the data and download it for Excel.")
-
-    # 1. THE FILTERS (UI Controls)
-    col_reg, col_rubro = st.columns(2)
+    sql_raw = f"SELECT codigoOC, NombreOC, DescripcionOC, RegionUnidadCompra, Proveedor FROM {REMOTE_TABLE} WHERE 1=1"
+    sql_raw = apply_filters(sql_raw) + f" LIMIT {limit_slider}"
     
-    with col_reg:
-        # Hardcoded list is faster than querying the DB
-        region_filter = st.selectbox("Select Region", 
-            ["All Regions", "Region Metropolitana de Santiago", "Region de Valparaiso", "Region del Biobio", "Region de Antofagasta"])
-    
-    with col_rubro:
-        rubro_keyword = st.text_input("Filter by Category (Rubro)", placeholder="e.g., Computacion")
-
-    # 2. BUILD THE QUERY AUTOMATICALLY
-    limit_rows = st.slider("Max Rows to Download", 10, 5000, 100)
-    
-    if st.button("🚀 Find Data"):
-        # Base Query
-        sql = f"SELECT * FROM {REMOTE_TABLE} WHERE 1=1"
-        
-        # Add filters dynamically
-        if region_filter != "All Regions":
-            sql += f" AND RegionUnidadCompra = '{region_filter}'"
-        
-        if rubro_keyword:
-            sql += f" AND (RubroN1 ILIKE '%{rubro_keyword}%' OR RubroN2 ILIKE '%{rubro_keyword}%')"
-        
-        sql += f" LIMIT {limit_rows}"
-        
-        # Run It
-        with st.spinner("Fetching data..."):
-            df_extract = con.execute(sql).df()
-            st.dataframe(df_extract)
-            
-            # DOWNLOAD BUTTON
-            csv = df_extract.to_csv(index=False).encode('utf-8')
-            st.download_button(
-                "📥 Download as CSV",
-                csv,
-                "licitakiller_data.csv",
-                "text/csv"
-            )
+    if st.button("🔎 Fetch Details"):
+        with st.spinner("Retrieving records..."):
+            df_raw = con.execute(sql_raw).df()
+            st.dataframe(df_raw, use_container_width=True)
