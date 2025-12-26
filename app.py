@@ -6,6 +6,7 @@ import plotly.express as px
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="Ramp-Up: Intelligence Dashboard", layout="wide")
 
+# CLEAN TITLE
 st.title("Ramp-Up: Market Intelligence HashtagJoseAntonioLovers")
 
 # --- CONNECT TO DATA (R2) ---
@@ -26,10 +27,10 @@ def get_connection():
     """)
     return con
 
-# --- DEFINING THE SOURCE (The Fix) ---
-# We use read_csv to handle the Chilean format (Semicolons + Latin-1 Encoding)
+# --- DEFINING THE SOURCE (Windows Fix 🪟) ---
+# encoding='cp1252' is critical for files made on Windows in Chile
 CSV_FILE = "s3://compra-agil-data/CA_2025.csv"
-REMOTE_TABLE = f"read_csv('{CSV_FILE}', delim=';', header=True, encoding='latin-1', ignore_errors=True)"
+REMOTE_TABLE = f"read_csv('{CSV_FILE}', delim=';', header=True, encoding='cp1252', ignore_errors=True)"
 
 try:
     con = get_connection()
@@ -40,12 +41,16 @@ except Exception as e:
 # --- TABS ---
 tab1, tab2, tab3 = st.tabs(["📊 Market Overview", "🕵️ Profile Detective", "📥 Data Extractor"])
 
-# === TAB 1: THE POWER BI ===
+# === TAB 1: MARKET OVERVIEW ===
 with tab1:
     st.markdown("### Market Distribution")
     if st.button("🔄 Load Regional Data"):
-        # Note: We use {REMOTE_TABLE} without quotes now
-        query_geo = f"SELECT RegionUnidadCompra as Region, COUNT(*) as Total FROM {REMOTE_TABLE} GROUP BY Region ORDER BY Total DESC"
+        query_geo = f"""
+            SELECT RegionUnidadCompra as Region, COUNT(*) as Total 
+            FROM {REMOTE_TABLE} 
+            GROUP BY Region 
+            ORDER BY Total DESC
+        """
         with st.spinner("Analyzing data..."):
             try:
                 df_geo = con.execute(query_geo).df()
@@ -56,14 +61,13 @@ with tab1:
 
 # === TAB 2: THE DETECTIVE ===
 with tab2:
-    st.markdown("###Find Hidden Professionals")
+    st.markdown("### Find Hidden Professionals")
     st.info("Search descriptions for specific terms.")
     col_search, col_limit = st.columns([3, 1])
     search_term = col_search.text_input("Search Keyword", placeholder="e.g., Salud Mental")
     limit = col_limit.number_input("Max Results", value=50)
 
     if search_term:
-        # We search in DescripcionItem or NombreItem (adjusted for standard column names)
         detective_query = f"""
             SELECT * FROM {REMOTE_TABLE} 
             WHERE DescripcionItem ILIKE '%{search_term}%' 
@@ -88,6 +92,3 @@ with tab3:
             st.dataframe(df_custom)
         except Exception as e:
             st.error(f"Error: {e}")
-
-
-
