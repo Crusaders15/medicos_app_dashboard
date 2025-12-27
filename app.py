@@ -4,6 +4,7 @@ import pandas as pd
 import plotly.express as px
 import random
 import io
+from datetime import datetime
 
 # --- PAGE CONFIG ---
 st.set_page_config(
@@ -12,7 +13,7 @@ st.set_page_config(
     initial_sidebar_state="expanded" 
 )
 
-# --- PROFESSIONAL UI DESIGN ---
+# --- PROFESSIONAL UI DESIGN (THE NUCLEAR FIX) ---
 def set_design():
     bg_url = "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop"
     st.markdown(
@@ -32,14 +33,16 @@ def set_design():
              background-color: rgba(0, 0, 0, 0.6);
          }}
 
-         /* SURGICAL BUTTON REMOVAL */
-         /* Hides the right-side toolbar but preserves the header for the sidebar arrow */
-         [data-testid="stHeaderActionElements"], 
+         /* THE SNIPER KILL: Targets exactly what you saw in DevTools */
+         div[data-testid="stToolbarActions"], 
          .stToolbarActions,
-         div[data-testid="stToolbar"] {{
+         div[data-testid="stToolbar"],
+         .st-emotion-cache-1p1m4ay {{
              display: none !important;
+             visibility: hidden !important;
          }}
 
+         /* Ensure header is transparent but exists for the arrow */
          header[data-testid="stHeader"] {{
              background-color: rgba(0,0,0,0) !important;
          }}
@@ -48,10 +51,11 @@ def set_design():
          footer {{ visibility: hidden !important; }}
          [data-testid="stDecoration"] {{ display: none !important; }}
          
-         /* Ensure the sidebar toggle arrow is white and always visible */
+         /* Force Sidebar arrow to stay white and visible */
          [data-testid="stSidebarCollapsedControl"] {{
              display: block !important;
              color: white !important;
+             z-index: 100000 !important;
          }}
          </style>
          """,
@@ -104,10 +108,22 @@ except Exception as e:
     st.error(f"Connection Failed: {e}")
 
 CSV_FILE = "s3://compra-agil-data/CA_2025.csv"
+# Assuming the date column in your CSV is named 'FechaPublicacion'
 REMOTE_TABLE = f"read_csv('{CSV_FILE}', delim=';', header=True, encoding='cp1252', ignore_errors=True)"
 
 # --- SIDEBAR & FILTERS ---
 st.sidebar.header("Global Slicers")
+
+# 1. New Date Range Slicer
+st.sidebar.subheader("Analysis Period")
+date_range = st.sidebar.date_input(
+    "Select Date Range",
+    value=(datetime(2025, 1, 1), datetime(2025, 12, 31)),
+    min_value=datetime(2024, 1, 1),
+    max_value=datetime(2026, 12, 31)
+)
+
+# 2. Existing Filters
 region_options = [
     "All Regions", "Region Metropolitana de Santiago", "Region de Antofagasta", 
     "Region de Arica y Parinacota", "Region de Atacama", 
@@ -122,22 +138,25 @@ selected_keyword = st.sidebar.text_input("Product Category", placeholder="Exampl
 
 st.sidebar.markdown("---") 
 st.sidebar.markdown("### Internal Use Only")
-meme_playlist = [
-    "https://placehold.co/400x300/png?text=Market+Intelligence",
-    "https://placehold.co/400x300/png?text=Target+Analysis",
-    "https://placehold.co/400x300/png?text=Opportunity+Report"
-]
-st.sidebar.image(random.choice(meme_playlist), use_container_width=True)
+st.sidebar.image("https://placehold.co/400x300/png?text=Market+Intelligence", use_container_width=True)
 
 # --- DASHBOARD CONTENT ---
 st.markdown("<h1 style='text-align: center; text-shadow: 2px 2px 4px #000000;'>Ramp-Up: Interactive Intelligence</h1>", unsafe_allow_html=True)
 
 def apply_filters(base_sql):
+    sql = base_sql
     if selected_region != "All Regions":
-        base_sql += f" AND RegionUnidadCompra = '{selected_region}'"
+        sql += f" AND RegionUnidadCompra = '{selected_region}'"
     if selected_keyword:
-        base_sql += f" AND (RubroN1 ILIKE '%{selected_keyword}%' OR DescripcionOC ILIKE '%{selected_keyword}%')"
-    return base_sql
+        sql += f" AND (RubroN1 ILIKE '%{selected_keyword}%' OR DescripcionOC ILIKE '%{selected_keyword}%')"
+    
+    # Apply Date Filter (assuming column 'FechaPublicacion')
+    if len(date_range) == 2:
+        start_date, end_date = date_range
+        # Note: adjust column name if different in your CSV
+        sql += f" AND FechaPublicacion BETWEEN '{start_date}' AND '{end_date}'"
+        
+    return sql
 
 tab1, tab2, tab3 = st.tabs(["Market Summary", "Performance Leaderboards", "Detail View"])
 
