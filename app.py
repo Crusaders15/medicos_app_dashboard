@@ -1,93 +1,106 @@
 import streamlit as st
 import duckdb
 import pandas as pd
+import datetime
+from pydantic import BaseModel
+from typing import Optional, Tuple
 
-# --- 1. CONFIGURATION & SETUP ---
-st.set_page_config(page_title="Ramp-Up: Market Intelligence", layout="wide")
+# --- CONFIGURATION & VALIDATION ---
+class AppConfig(BaseModel):
+    title: str = "Ramp-Up: Market Intelligence"
+    table_name: str = "market_data"
+    file_path: str = "data.csv"
 
-# Change this to your actual data file path
-DATA_PATH = "your_data_file.csv" 
-DATA_SOURCE = "market_data"
+class FilterSchema(BaseModel):
+    region: str
+    product_cat: Optional[str] = None
+    dates: Tuple[datetime.date, datetime.date]
+
+config = AppConfig()
+
+st.set_page_config(page_title=config.title, layout="wide")
+
+# --- GREIGE STYLING ---
+st.markdown("""
+    <style>
+    .stApp { background-color: #D3D3D3; color: #2E2E2E; }
+    .stSidebar { background-color: #BDB76B !important; }
+    h1, h2, h3 { color: #4A4A4A !important; }
+    </style>
+    """, unsafe_allow_html=True)
+
+# --- DATABASE ENGINE ---
+@st.cache_resource
+def get_connection():
+    return duckdb.connect(database=':memory:')
+
+con = get_connection()
 
 @st.cache_data
-def load_data():
-    # Load your data here
-    df = pd.read_csv(DATA_PATH)
-    return df
+def load_and_register():
+    try:
+        df = pd.read_csv(config.file_path)
+        con.register(config.table_name, df)
+        return df
+    except Exception as e:
+        st.error(f"Error loading {config.file_path}: {e}")
+        return None
 
-try:
-    df = load_data()
-except Exception as e:
-    st.error(f"Could not load data: {e}")
-    st.stop()
+df = load_and_register()
 
-# Initialize DuckDB and register the dataframe
-db = duckdb.connect(database=':memory:')
-db.register(DATA_SOURCE, df)
+# --- SIDEBAR FILTERS ---
+st.sidebar.title("Global Slicers")
 
-# --- 2. SIDEBAR / GLOBAL SLICERS ---
-st.sidebar.header("Global Slicers")
-
-analysis_period = st.sidebar.date_input(
-    "Analysis Period",
-    value=(pd.to_datetime("2025-01-01"), pd.to_datetime("2025-12-31"))
+date_range = st.sidebar.date_input(
+    "Analysis Period", 
+    value=(datetime.date(2025, 1, 1), datetime.date(2025, 12, 31))
 )
 
-region_options = ["All"] + sorted(df['Region'].unique().tolist()) if 'Region' in df.columns else ["All"]
-region = st.sidebar.selectbox("Region", options=region_options)
+# Populate regions from CSV
+if df is not None:
+    region_options = ["All"] + sorted(df['Region'].unique().tolist())
+else:
+    region_options = ["All"]
 
-product_cat = st.sidebar.text_input("Product Category", placeholder="Example: Medical")
+selected_region = st.sidebar.selectbox("Region", options=region_options)
+product_input = st.sidebar.text_input("Product Category", placeholder="e.g. Medical")
 
-# --- 3. FILTER LOGIC ---
-def apply_filters(base_query):
-    filters = []
-    
-    # Date Filter (Assuming your column is named 'Date')
-    if len(analysis_period) == 2:
-        start_date, end_date = analysis_period
-        filters.append(f"Date >= '{start_date}' AND Date <= '{end_date}'")
-    
-    # Region Filter
-    if region != "All":
-        filters.append(f"Region = '{region}'")
-    
-    # Product Category Filter
-    if product_cat:
-        filters.append(f"ProductCategory LIKE '%{product_cat}%'")
-    
-    if filters:
-        # Join filters and append to query. 
-        # Since your base query has 'WHERE 1=1', we always use 'AND'
-        return f"{base_query} AND " + " AND ".join(filters)
-    
-    return base_query
+# --- MAIN DASHBOARD ---
+st.title(config.title)
 
-# --- 4. MAIN DASHBOARD ---
-st.title("Ramp-Up: Market Intelligence")
+if df is not None:
+    # Validate inputs using Pydantic
+    if isinstance(date_range, tuple) and len(date_range) == 2:
+        filters = FilterSchema(
+            region=selected_region,
+            product_cat=product_input,
+            dates=date_range
+        )
 
-tabs = st.tabs(["Market Summary", "Specialty Analysis", "Leaderboards", "Competitive Analysis", "Detail View"])
+        tabs = st.tabs(["Market Summary", "Specialty Analysis", "Leaderboards"])
 
-with tabs[0]:
-    if st.button("Refresh Summary Data"):
-        st.rerun()
-
-    # --- LINE 108 FIX ---
-    try:
-        # We ensure DATA_SOURCE is registered and apply_filters is defined above
-        query = apply_filters(f"SELECT COUNT(*) as Total FROM {DATA_SOURCE} WHERE 1=1")
-        res = db.execute(query).df()
-        
-        total_records = res['Total'].iloc[0]
-        
-        # Display Metrics
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Total Opportunities", f"{total_records:,}")
-        
-    except Exception as e:
-        st.error(f"Error executing query: {e}")
-        st.info("Check if column names (Date, Region, ProductCategory) match your CSV exactly.")
-
-# --- 5. INTERNAL USE ONLY SECTION ---
-st.sidebar.markdown("---")
-st.sidebar.subheader("Internal Use Only")
-st.sidebar.info("Market Intelligence")
+        with tabs[0]:
+            try:
+                # Build Query
+                where = ["1=1"]
+                if filters.region != "All":
+                    where.append(f"Region = '{filters.region}'")
+                if filters.product_cat:
+                    where.append(f"ProductCategory ILIKE '%{filters.product_cat}%'")
+                
+                sql = f"SELECT COUNT(*) as Total FROM {config.table_name} WHERE " + " AND ".join(where)
+                
+                # Execute
+                res = con.execute(sql).df()
+                total = res['Total'].iloc[0]
+                
+                st.metric("Total Opportunities", f"{total:,}")
+                st.dataframe(df.head(50), use_container_width=True)
+                
+            except Exception as e:
+                st.error(f"Query Error: {e}")
+                st.info("Ensure your CSV has 'Region' and 'ProductCategory' columns.")
+    else:
+        st.info("Select a full date range (Start and End) to see data.")
+else:
+    st.warning(f"File '{config.file_path}' not found in the repository.")
