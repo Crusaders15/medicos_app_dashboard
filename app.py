@@ -108,14 +108,29 @@ search_query = st.sidebar.text_input("Product Category", placeholder="Example: S
 st.sidebar.markdown("---") 
 st.sidebar.markdown("### Internal Use Only")
 
-# --- MEME PLAYLIST (This is where you will add your links!) ---
-meme_playlist = [
-    "https://placehold.co/400x300/1a1a1a/ffffff/png?text=Market+Intelligence",
-    "https://placehold.co/400x300/1a1a1a/ffffff/png?text=Target+Analysis",
-    "https://placehold.co/400x300/1a1a1a/ffffff/png?text=Opportunity+Report"
-]
-st.sidebar.image(random.choice(meme_playlist), use_container_width=True)
+# --- SIDEBAR & FILTERS ---
+st.sidebar.header("Global Slicers")
 
+# 1. NEW BASE URL (Copy this from your Cloudflare R2 Settings tab)
+# Look for 'Public Development URL'
+base_url = "https://pub-your-unique-id.r2.dev" 
+
+# 2. UPDATED MEME LIST
+# These filenames match exactly what you uploaded to your R2 'Memes' folder
+meme_playlist = [
+    f"{base_url}/Memes/Drake%20Meme.jpg",
+    f"{base_url}/Memes/Drake%20Meme%20afwt2v.jpg",
+    f"{base_url}/Memes/Drake%20meme%20afwt19.jpg"
+]
+
+# 3. SIDEBAR IMAGE DISPLAY
+with st.sidebar:
+    st.markdown("---")
+    st.markdown("### Internal Use Only")
+    # This line picks one random meme every time Felipe reloads the app
+    st.image(random.choice(meme_playlist), use_container_width=True)
+    st.caption("Daily Motivation")
+    
 # --- DASHBOARD CONTENT ---
 st.markdown("<h1 style='text-align: center; text-shadow: 2px 2px 4px #000000;'>Ramp-Up: Market Intelligence</h1>", unsafe_allow_html=True)
 
@@ -207,3 +222,4 @@ with t5:
         with pd.ExcelWriter(out, engine='xlsxwriter') as w:
             df_v.to_excel(w, index=False)
         st.download_button("Export to Excel", data=out.getvalue(), file_name="market_data.xlsx")
+
