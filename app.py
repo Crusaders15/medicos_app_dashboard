@@ -6,25 +6,30 @@ import random
 import io
 from datetime import datetime
 
-# --- 1. PAGE CONFIG & STABLE DARK UI ---
-st.set_page_config(page_title="Ramp-Up: Intelligence Dashboard", layout="wide")
+# --- 1. PAGE CONFIG & GREIGE UI ---
+st.set_page_config(page_title="Ramp-Up: Market Intelligence", layout="wide")
 
-def apply_stable_ui():
+def apply_clean_ui():
     st.markdown("""
         <style>
         .stApp {
-            background-color: rgba(5, 5, 10, 0.98);
-            background-image: url("https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop");
-            background-attachment: fixed;
-            background-size: cover;
-            background-blend-mode: darken;
+            background-color: #f5f5f4; /* Soft Greige for eye comfort */
+            color: #1c1917 !important;
         }
-        .stMarkdown, .stText, h1, h2, h3, h4, h5, h6, p, label { color: #cfd8dc !important; }
+        section[data-testid="stSidebar"] {
+            background-color: #e7e5e4 !important;
+            border-right: 1px solid #d6d3d1;
+        }
+        /* Restore Professional Text Color */
+        .stMarkdown, .stText, h1, h2, h3, h4, h5, h6, p, label, .stTabs { 
+            color: #1c1917 !important; 
+        }
+        /* Hide platform elements */
         div[data-testid="stToolbarActions"], div[data-testid="stToolbar"] { display: none !important; }
         header[data-testid="stHeader"] { background-color: rgba(0,0,0,0) !important; }
         </style>
     """, unsafe_allow_html=True)
-apply_stable_ui()
+apply_clean_ui()
 
 # --- 2. DATA CONNECTION ---
 @st.cache_resource
@@ -39,14 +44,21 @@ db = get_db()
 CSV_PATH = "s3://compra-agil-data/CA_2025.csv"
 DATA_SOURCE = f"read_csv('{CSV_PATH}', delim=';', header=True, encoding='cp1252', ignore_errors=True)"
 
-# --- 3. SIDEBAR & MEMES ---
-st.sidebar.header("Global Slicers")
-date_range = st.sidebar.date_input("Analysis Period", value=(datetime(2025, 1, 1), datetime(2025, 12, 31)))
-target_region = st.sidebar.selectbox("Region", ["All Regions", "Region Metropolitana de Santiago", "Region de Antofagasta", "Region de Valparaiso", "Region del Biobio"])
-
+# --- 3. SIDEBAR: FILTERS TOP, MEMES BOTTOM ---
 with st.sidebar:
-    for _ in range(10): st.write("") # Spacer
+    st.header("Market Filters")
+    # Using text input for dates to avoid BinderException during development
+    date_start = st.text_input("Start Date (YYYY-MM-DD)", "2025-01-01")
+    date_end = st.text_input("End Date (YYYY-MM-DD)", "2025-12-31")
+    
+    regions = ["All Regions", "Region Metropolitana de Santiago", "Region de Antofagasta", "Region de Valparaiso", "Region del Biobio", "Region del Maule"]
+    target_region = st.selectbox("Select Region", regions)
+    
+    # Push memes to the bottom
+    st.container(height=300, border=False) 
     st.markdown("---")
+    st.markdown("### Internal Use Only")
+    
     base_url = "https://pub-a626d3085678426eae26e41ff821191f.r2.dev" 
     meme_playlist = [
         f"{base_url}/Memes/Drake%20Meme.jpg",
@@ -54,44 +66,46 @@ with st.sidebar:
         f"{base_url}/Memes/Drake%20meme%20afwt19.jpg"
     ]
     st.image(random.choice(meme_playlist), use_container_width=True)
-    st.caption("Baseline Recovery v39.0")
+    st.caption("Baseline Recovery v40.0")
 
-# --- 4. DATA FILTERING ---
+# --- 4. FILTERING LOGIC ---
 def apply_filters(base_sql):
     sql = base_sql
     if target_region != "All Regions":
         sql += f" AND RegionUnidadCompra = '{target_region}'"
-    if len(date_range) == 2:
-        # Nuclear cast fix to prevent BinderExceptions
-        sql += f" AND try_cast(FechaPublicacion AS DATE) BETWEEN '{date_range[0]}' AND '{date_range[1]}'"
+    # Basic string-based filtering to avoid complex casting errors
+    sql += f" AND FechaPublicacion >= '{date_start}' AND FechaPublicacion <= '{date_end}'"
     return sql
 
-# --- 5. CONTENT ---
-st.markdown("<h1 style='text-align: center;'>Ramp-Up: Market Intelligence</h1>", unsafe_allow_html=True)
+# --- 5. MAIN CONTENT ---
+st.markdown("<h1 style='text-align: center; font-weight: bold;'>Ramp-Up: Market Intelligence</h1>", unsafe_allow_html=True)
 
-tabs = st.tabs(["Market Summary", "Geography Analysis", "Specialty Scan", "Raw Data"])
+tabs = st.tabs(["Summary", "Regional Geography", "Specialty Analysis", "Detail View"])
 
 with tabs[0]:
-    if st.button("Calculate Metrics", type="primary"):
-        res = db.execute(apply_filters(f"SELECT COUNT(*) as Total FROM {DATA_SOURCE} WHERE 1=1")).df()
-        st.metric("Total Contracts identified", f"{res['Total'][0]:,}")
+    if st.button("Refresh Summary Data", type="primary"):
+        with st.spinner("Fetching from R2..."):
+            res = db.execute(apply_filters(f"SELECT COUNT(*) as Total FROM {DATA_SOURCE} WHERE 1=1")).df()
+            st.metric("Total Contracts identified", f"{res['Total'][0]:,}")
 
 with tabs[1]:
-    if st.button("Analyze Top Cities"):
-        geo_sql = apply_filters(f"SELECT CiudadUnidadCompra as City, COUNT(*) as Count FROM {DATA_SOURCE} WHERE City IS NOT NULL") + " GROUP BY City ORDER BY Count DESC LIMIT 15"
-        df_geo = db.execute(geo_sql).df()
-        st.bar_chart(df_geo.set_index("City"))
+    if st.button("Analyze City Distribution"):
+        with st.spinner("Loading Geography..."):
+            geo_sql = apply_filters(f"SELECT CiudadUnidadCompra as City, COUNT(*) as Count FROM {DATA_SOURCE} WHERE 1=1") + " GROUP BY City ORDER BY Count DESC LIMIT 15"
+            df_geo = db.execute(geo_sql).df()
+            st.bar_chart(df_geo.set_index("City"))
 
 with tabs[2]:
     if st.button("Scan Professional Specialties"):
-        spec_map = {"Psicologia": "Psicolo", "TENS": "TENS", "Enfermeria": "Enfermer"}
-        results = []
-        for label, keyword in spec_map.items():
-            count = db.execute(apply_filters(f"SELECT COUNT(*) FROM {DATA_SOURCE} WHERE DescripcionOC ILIKE '%{keyword}%'")).df().iloc[0,0]
-            results.append({"Specialty": label, "Count": count})
-        st.dataframe(pd.DataFrame(results), use_container_width=True)
+        with st.spinner("Analyzing Profiles..."):
+            spec_map = {"Psicologia": "Psicolo", "TENS": "TENS", "Enfermeria": "Enfermer"}
+            results = []
+            for label, keyword in spec_map.items():
+                count = db.execute(apply_filters(f"SELECT COUNT(*) FROM {DATA_SOURCE} WHERE DescripcionOC ILIKE '%{keyword}%'")).df().iloc[0,0]
+                results.append({"Specialty": label, "Count": count})
+            st.dataframe(pd.DataFrame(results).set_index("Specialty"), use_container_width=True)
 
 with tabs[3]:
-    if st.button("Load 100 Records"):
+    if st.button("Load 100 Raw Records"):
         df_detail = db.execute(apply_filters(f"SELECT codigoOC, NombreOC, Proveedor FROM {DATA_SOURCE} WHERE 1=1") + " LIMIT 100").df()
         st.dataframe(df_detail, use_container_width=True)
