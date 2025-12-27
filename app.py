@@ -33,19 +33,17 @@ def set_design():
          }}
 
          /* SURGICAL BUTTON REMOVAL */
-         /* This hides the toolbar actions on the right but keeps the header for the sidebar arrow */
+         /* Hides the right-side toolbar but preserves the header for the sidebar arrow */
          [data-testid="stHeaderActionElements"], 
          .stToolbarActions,
          div[data-testid="stToolbar"] {{
              display: none !important;
          }}
 
-         /* Ensure the header itself is transparent so it doesn't look like a bar */
          header[data-testid="stHeader"] {{
              background-color: rgba(0,0,0,0) !important;
          }}
 
-         /* Hide the deployment button and footer */
          .stDeployButton {{ display: none !important; }}
          footer {{ visibility: hidden !important; }}
          [data-testid="stDecoration"] {{ display: none !important; }}
@@ -141,7 +139,7 @@ def apply_filters(base_sql):
         base_sql += f" AND (RubroN1 ILIKE '%{selected_keyword}%' OR DescripcionOC ILIKE '%{selected_keyword}%')"
     return base_sql
 
-tab1, tab2, tab3 = st.tabs(["Market Summary", "Top Awarded", "Detail View"])
+tab1, tab2, tab3 = st.tabs(["Market Summary", "Performance Leaderboards", "Detail View"])
 
 with tab1:
     if st.button("Refresh Summary Data", type="primary"):
@@ -162,30 +160,38 @@ with tab1:
             st.plotly_chart(fig, use_container_width=True)
 
 with tab2:
-    if st.button("Load Performance Leaderboards"):
+    st.markdown("### Performance Leaderboards")
+    supplier_search = st.text_input("Filter Leaderboards by Supplier Name", placeholder="Enter supplier name...")
+    
+    if st.button("Load Analytics"):
         col1, col2 = st.columns(2)
         with col1:
-            st.write("**Top Suppliers by Volume**")
-            st.dataframe(con.execute(apply_filters(f"SELECT Proveedor, COUNT(*) as Wins FROM {REMOTE_TABLE} WHERE 1=1") + " GROUP BY Proveedor ORDER BY Wins DESC LIMIT 10").df())
+            st.write("**Top Suppliers**")
+            sup_sql = f"SELECT Proveedor, COUNT(*) as Wins FROM {REMOTE_TABLE} WHERE 1=1"
+            if supplier_search:
+                sup_sql += f" AND Proveedor ILIKE '%{supplier_search}%'"
+            sup_sql = apply_filters(sup_sql) + " GROUP BY Proveedor ORDER BY Wins DESC LIMIT 10"
+            st.dataframe(con.execute(sup_sql).df(), use_container_width=True)
         with col2:
             st.write("**Top Purchasing Institutions**")
-            st.dataframe(con.execute(apply_filters(f"SELECT Institucion, COUNT(*) as Buys FROM {REMOTE_TABLE} WHERE 1=1") + " GROUP BY Institucion ORDER BY Buys DESC LIMIT 10").df())
+            ins_sql = apply_filters(f"SELECT Institucion, COUNT(*) as Buys FROM {REMOTE_TABLE} WHERE 1=1") + " GROUP BY Institucion ORDER BY Buys DESC LIMIT 10"
+            st.dataframe(con.execute(ins_sql).df(), use_container_width=True)
 
 with tab3:
-    row_count = st.slider("Number of Rows", 10, 500, 50)
+    row_count = st.slider("Record Limit", 10, 1000, 100)
     if st.button("Load Detailed Records"):
         df_details = con.execute(apply_filters(f"SELECT codigoOC, NombreOC, DescripcionOC, RegionUnidadCompra, Proveedor FROM {REMOTE_TABLE} WHERE 1=1") + f" LIMIT {row_count}").df()
-        st.dataframe(df_details)
+        st.dataframe(df_details, use_container_width=True)
         
         # EXCEL EXPORT
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            df_details.to_excel(writer, index=False, sheet_name='Sheet1')
+            df_details.to_excel(writer, index=False, sheet_name='MarketData')
         processed_data = output.getvalue()
         
         st.download_button(
-            label="Download Data as Excel",
+            label="Export Current View to Excel",
             data=processed_data,
-            file_name="rampup_export.xlsx",
+            file_name="rampup_market_intelligence.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
