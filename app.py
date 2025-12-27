@@ -74,6 +74,7 @@ def check_password():
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
         pwd_input = st.text_input("Access Code", type="password")
+        secret_pwd = st.secrets["GENERAL"]["APP_PASSWORD"]
         if pwd_input:
             secret_pwd = st.secrets.get("GENERAL", {}).get("APP_PASSWORD", "BichoGordito@15!")
             if pwd_input == secret_pwd:
@@ -214,6 +215,7 @@ with tab3:
             file_name="rampup_market_intelligence.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
+
 
 
 
