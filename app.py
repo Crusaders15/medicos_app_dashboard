@@ -11,7 +11,7 @@ st.set_page_config(
     initial_sidebar_state="expanded" 
 )
 
-# --- CSS MAGIC (The Sniper Fix ) ---
+# --- CSS MAGIC (The Invisibility Cloak 🧥) ---
 def set_design():
     bg_url = "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop"
     st.markdown(
@@ -41,27 +41,26 @@ def set_design():
              background-color: rgba(0, 0, 0, 0.6);
          }}
          
-         /* 5. THE SNIPER SHOTS 🔫 */
+         /* 5. THE NUCLEAR OPTION  */
          
-         /* Kill the Toolbar (Share, Star, Menu) */
-         [data-testid="stToolbarActions"] {{
-             display: none !important;
-         }}
+         /* Hide the Decoration Line */
+         [data-testid="stDecoration"] {{display: none;}}
          
-         /* Kill the colorful decoration line at the top */
-         [data-testid="stDecoration"] {{
-             display: none !important;
-         }}
-
-         /* Kill the Footer */
-         footer {{
-             visibility: hidden;
-         }}
+         /* Hide the Footer */
+         footer {{visibility: hidden;}}
+         .stDeployButton {{visibility: hidden;}}
          
-         /* ENSURE HEADER IS VISIBLE (For the Arrow) */
+         /* HIDE THE WHOLE HEADER (This kills the buttons) */
          header {{
+             visibility: hidden !important;
+         }}
+         
+         /* BUT RESURRECT THE SIDEBAR TOGGLE (This brings back the arrow) */
+         /* We target both possible ID names Streamlit uses to be safe */
+         [data-testid="stSidebarCollapsedControl"], [data-testid="collapsedControl"] {{
              visibility: visible !important;
-             background-color: rgba(0,0,0,0) !important;
+             color: white !important;
+             z-index: 999999 !important;
          }}
          
          </style>
@@ -138,7 +137,7 @@ REMOTE_TABLE = f"read_csv('{CSV_FILE}', delim=';', header=True, encoding='cp1252
 # ==========================================
 #  SIDEBAR (ALL REGIONS + MEMES)
 # ==========================================
-st.sidebar.header("🔍 Global Slicers")
+st.sidebar.header(" Global Slicers")
 
 # 1. THE FULL REGION LIST
 region_options = [
@@ -241,7 +240,7 @@ with tab1:
 # === TAB 2: LEADERBOARDS ===
 with tab2:
     st.markdown(f"###  Top Players ({selected_region})")
-    if st.button("Load Leaderboards"):
+    if st.button(" Load Leaderboards"):
         col1, col2 = st.columns(2)
         
         with col1:
