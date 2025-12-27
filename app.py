@@ -13,13 +13,13 @@ st.set_page_config(
     initial_sidebar_state="expanded" 
 )
 
-# --- 2. THE DESIGN FUNCTION (This is what you couldn't find!) ---
+# --- 2. THE DESIGN (Eye-Comfort Dark Mode) ---
 def apply_custom_ui():
     bg_url = "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop"
     st.markdown(
          f"""
          <style>
-         /* DEEP DARK BACKGROUND (96% Dark Overlay for Eye Comfort) */
+         /* DEEP DARK OVERLAY (Reduces Glare) */
          .stApp {{
              background-image: url("{bg_url}");
              background-attachment: fixed;
@@ -33,7 +33,7 @@ def apply_custom_ui():
              color: #cfd8dc !important; 
          }}
          
-         /* HIDE PLATFORM BUTTONS (Share, Star, GitHub) */
+         /* HIDE PLATFORM TOOLBARS */
          div[data-testid="stToolbarActions"], 
          .stToolbarActions,
          div[data-testid="stToolbar"] {{
@@ -49,7 +49,6 @@ def apply_custom_ui():
          unsafe_allow_html=True
      )
 
-# Call the function to apply the design
 apply_custom_ui()
 
 # --- 3. SECURITY ---
@@ -74,28 +73,32 @@ def get_db():
     return con
 
 db = get_db()
+# Using the CSV in your bucket
 DATA_SOURCE = "read_csv('s3://compra-agil-data/CA_2025.csv', delim=';', header=True, encoding='cp1252', ignore_errors=True)"
 
-# --- 5. SIDEBAR, FILTERS & MEMES ---
+# --- 5. SIDEBAR & MEME INTEGRATION ---
 st.sidebar.header("Global Slicers")
-date_range = st.sidebar.date_input("Analysis Period", value=(datetime(2025, 1, 1), datetime(2025, 12, 31)))
-target_region = st.sidebar.selectbox("Region", ["All Regions", "Region Metropolitana de Santiago", "Region de Antofagasta", "Region de Valparaiso", "Region del Biobio"])
 
-# --- MEME INTEGRATION ---
-# REPLACE the URL below with your 'Public Development URL' from R2 Settings
-base_url = "https://pub-your-id.r2.dev" 
+# Your actual R2 Public URL
+base_url = "https://pub-a626d3085678426eae26e41ff821191f.r2.dev" 
 
+# File names taken from your R2 'Memes' folder
 meme_playlist = [
     f"{base_url}/Memes/Drake%20Meme.jpg",
     f"{base_url}/Memes/Drake%20Meme%20afwt2v.jpg",
     f"{base_url}/Memes/Drake%20meme%20afwt19.jpg"
 ]
 
+# Slicers
+date_range = st.sidebar.date_input("Analysis Period", value=(datetime(2025, 1, 1), datetime(2025, 12, 31)))
+target_region = st.sidebar.selectbox("Region", ["All Regions", "Region Metropolitana de Santiago", "Region de Antofagasta", "Region de Valparaiso", "Region del Biobio"])
+
 with st.sidebar:
     st.markdown("---")
     st.markdown("### Internal Use Only")
-    # Randomly picks one of your R2 memes
+    # Randomly picks one of your R2 memes on refresh
     st.image(random.choice(meme_playlist), use_container_width=True)
+    st.caption("Daily Motivation")
 
 # --- 6. DASHBOARD CONTENT ---
 st.markdown("<h1 style='text-align: center;'>Ramp-Up: Market Intelligence</h1>", unsafe_allow_html=True)
@@ -124,4 +127,19 @@ with tabs[1]:
         results = [{"Specialty": k, "Count": db.execute(apply_filters(f"SELECT COUNT(*) FROM {DATA_SOURCE} WHERE DescripcionOC ILIKE '%{v}%'")).df().iloc[0,0]} for k, v in spec_map.items()]
         st.bar_chart(pd.DataFrame(results).set_index("Specialty"))
 
-# Other tabs remain functional as in previous versions...
+# Leaderboards
+with tabs[2]:
+    st.markdown("### Top Awarded")
+    if st.button("Load Leaderboards"):
+        sql = apply_filters(f"SELECT Proveedor, COUNT(*) as Wins FROM {DATA_SOURCE} WHERE 1=1") + " GROUP BY Proveedor ORDER BY Wins DESC LIMIT 10"
+        st.dataframe(db.execute(sql).df(), use_container_width=True)
+
+# Detail View & Excel
+with tabs[4]:
+    if st.button("Load Records"):
+        df_v = db.execute(apply_filters(f"SELECT codigoOC, NombreOC, DescripcionOC FROM {DATA_SOURCE} WHERE 1=1") + " LIMIT 100").df()
+        st.dataframe(df_v, use_container_width=True)
+        out = io.BytesIO()
+        with pd.ExcelWriter(out, engine='xlsxwriter') as w:
+            df_v.to_excel(w, index=False)
+        st.download_button("Export to Excel", data=out.getvalue(), file_name="market_data.xlsx")
