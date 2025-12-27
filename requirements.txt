@@ -2,4 +2,10 @@ streamlit
 duckdb
 pandas
 plotly
+
 s3fs
+
+streamlit
+pandas
+duckdb
+pydantic
