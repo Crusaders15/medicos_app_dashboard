@@ -8,10 +8,10 @@ import random
 st.set_page_config(
     page_title="Ramp-Up: Intelligence Dashboard", 
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="expanded" 
 )
 
-# --- CSS MAGIC (Surgical Ghost Mode)  ---
+# --- CSS MAGIC (Safe Mode)  ---
 def set_design():
     bg_url = "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop"
     st.markdown(
@@ -41,34 +41,11 @@ def set_design():
              background-color: rgba(0, 0, 0, 0.6);
          }}
          
-         /* 5. SURGICAL GHOST MODE  */
-         /* Hide the Deploy button specifically */
-         .stDeployButton {{
-             visibility: hidden;
-         }}
+         /* 5. SAFE CLEANUP (Only hide footer and deploy button) */
+         .stDeployButton {{visibility: hidden;}}
+         footer {{visibility: hidden;}}
          
-         /* Hide the 3-dots menu (Optional - remove this if you want the menu back) */
-         #MainMenu {{
-             visibility: hidden;
-         }}
-         
-         /* Hide Footer */
-         footer {{
-             visibility: hidden;
-         }}
-
-         /* CRITICAL: Make the header transparent but VISIBLE so the sidebar button works */
-         header {{
-             visibility: visible !important;
-             background-color: rgba(0,0,0,0) !important;
-         }}
-         
-         /* Force the sidebar toggle button to be visible and white */
-         [data-testid="collapsedControl"] {{
-             visibility: visible !important;
-             color: white !important;
-             z-index: 999999 !important;
-         }}
+         /* WE REMOVED THE HEADER HIDING CODE TO BRING THE ARROW BACK */
          
          </style>
          """,
@@ -269,7 +246,7 @@ with tab3:
     st.markdown("###  Deep Dive Data")
     limit_slider = st.slider("Rows to show", 10, 500, 50)
     
-    if st.button("🔎 Fetch Details"):
+    if st.button(" Fetch Details"):
         sql_raw = f"SELECT codigoOC, NombreOC, DescripcionOC, RegionUnidadCompra, Proveedor FROM {REMOTE_TABLE} WHERE 1=1"
         sql_raw = apply_filters(sql_raw) + f" LIMIT {limit_slider}"
         with st.spinner("Retrieving records..."):
