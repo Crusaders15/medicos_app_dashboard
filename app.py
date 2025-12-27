@@ -7,13 +7,13 @@ import io
 from datetime import datetime
 
 # --- 1. PAGE CONFIG & UI ---
-st.set_page_config(page_title="Ramp-Up: Intelligence Dashboard", layout="wide")
+st.set_page_config(page_title="Ramp-Up: Market Intelligence", layout="wide")
 
 def apply_ui():
     st.markdown("""
         <style>
         .stApp {
-            background-color: rgba(5, 5, 10, 0.97);
+            background-color: rgba(5, 5, 10, 0.98);
             background-image: url("https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop");
             background-attachment: fixed;
             background-size: cover;
@@ -25,7 +25,7 @@ def apply_ui():
     """, unsafe_allow_html=True)
 apply_ui()
 
-# --- 2. DATA CONNECTION ---
+# --- 2. DATA INFRASTRUCTURE ---
 @st.cache_resource
 def get_db():
     creds = st.secrets["R2"]
@@ -35,16 +35,18 @@ def get_db():
     return con
 
 db = get_db()
-# Optimization: We cast FechaPublicacion to DATE immediately
+# Casting dates and cleaning city data for the heatmap
 DATA_SOURCE = """
-    (SELECT *, CAST(FechaPublicacion AS DATE) as CleanDate 
+    (SELECT *, 
+     CAST(FechaPublicacion AS DATE) as CleanDate,
+     COALESCE(CiudadUnidadCompra, 'Unknown') as City
      FROM read_csv('s3://compra-agil-data/CA_2025.csv', delim=';', header=True, encoding='cp1252', ignore_errors=True))
 """
 
-# --- 3. SIDEBAR, MEMES & FILTERS ---
+# --- 3. SIDEBAR & MEMES ---
 st.sidebar.header("Global Slicers")
 
-# MEME SECTION
+# MEME FIX: Verified public path
 base_url = "https://pub-a626d3085678426eae26e41ff821191f.r2.dev" 
 meme_playlist = [
     f"{base_url}/Memes/Drake%20Meme.jpg",
@@ -54,13 +56,16 @@ meme_playlist = [
 
 with st.sidebar:
     st.markdown("---")
-    st.image(random.choice(meme_playlist), use_container_width=True)
+    # Try/Except prevents the app from crashing if an image fails to load
+    try:
+        st.image(random.choice(meme_playlist), use_container_width=True)
+    except:
+        st.info("Daily Motivation: Market Intelligence")
     st.markdown("---")
 
 date_range = st.sidebar.date_input("Analysis Period", value=(datetime(2025, 1, 1), datetime(2025, 12, 31)))
 target_region = st.sidebar.selectbox("Region", ["All Regions", "Region Metropolitana de Santiago", "Region de Antofagasta", "Region de Valparaiso", "Region del Biobio"])
 
-# --- 4. FILTER LOGIC ---
 def apply_filters(base_sql):
     sql = base_sql
     if target_region != "All Regions":
@@ -69,33 +74,35 @@ def apply_filters(base_sql):
         sql += f" AND CleanDate BETWEEN '{date_range[0]}' AND '{date_range[1]}'"
     return sql
 
-# --- 5. TABS ---
-t1, t2, t3, t4 = st.tabs(["Market Summary", "Specialty Analysis", "Competitive", "Detail View"])
+# --- 4. ANALYTICS TABS ---
+t1, t2, t3, t4 = st.tabs(["Market Summary", "Regional Geography", "Specialty Analysis", "Detail View"])
 
 with t1:
-    st.markdown("### Market Trends")
+    st.markdown("### Market Trends Over Time")
     if st.button("Generate Trend Report"):
-        # This query groups by Month
-        trend_sql = apply_filters(f"SELECT month(CleanDate) as Month, COUNT(*) as Tenders FROM {DATA_SOURCE} WHERE 1=1") + " GROUP BY Month ORDER BY Month"
+        trend_sql = apply_filters(f"SELECT month(CleanDate) as Month, COUNT(*) as Total FROM {DATA_SOURCE} WHERE 1=1") + " GROUP BY Month ORDER BY Month"
         df_trend = db.execute(trend_sql).df()
-        
-        fig_trend = px.line(df_trend, x='Month', y='Tenders', title="Tenders Volume by Month", markers=True, template="plotly_dark")
+        fig_trend = px.line(df_trend, x='Month', y='Total', title="Monthly Tender Volume", markers=True, template="plotly_dark")
         fig_trend.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
         st.plotly_chart(fig_trend, use_container_width=True)
-    
-    st.divider()
-    if st.button("Calculate Current Metrics"):
-        res = db.execute(apply_filters(f"SELECT COUNT(*) as Total FROM {DATA_SOURCE} WHERE 1=1")).df()
-        st.metric("Total Contracts Found", f"{res['Total'][0]:,}")
 
 with t2:
-    st.header("Specialty Analysis")
-    if st.button("Run Professional Demand Scan"):
+    st.markdown("### Geography Heatmap")
+    if st.button("Analyze City Distribution"):
+        geo_sql = apply_filters(f"SELECT City, COUNT(*) as Volume FROM {DATA_SOURCE} WHERE 1=1") + " GROUP BY City ORDER BY Volume DESC LIMIT 20"
+        df_geo = db.execute(geo_sql).df()
+        fig_geo = px.bar(df_geo, x='Volume', y='City', orientation='h', title="Top 20 Cities by Tender Volume", color='Volume', template="plotly_dark")
+        fig_geo.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', yaxis={'categoryorder':'total ascending'})
+        st.plotly_chart(fig_geo, use_container_width=True)
+
+with t3:
+    st.header("Professional Specialty Analysis")
+    if st.button("Run Demand Scan"):
         spec_map = {"Psicologia": "Psicolo", "TENS": "TENS", "Enfermeria": "Enfermer"}
         results = [{"Specialty": k, "Count": db.execute(apply_filters(f"SELECT COUNT(*) FROM {DATA_SOURCE} WHERE DescripcionOC ILIKE '%{v}%'")).df().iloc[0,0]} for k, v in spec_map.items()]
         st.bar_chart(pd.DataFrame(results).set_index("Specialty"))
 
 with t4:
-    if st.button("Load Detailed Data"):
-        df_v = db.execute(apply_filters(f"SELECT CleanDate, codigoOC, NombreOC FROM {DATA_SOURCE} WHERE 1=1") + " LIMIT 100").df()
-        st.dataframe(df_v, use_container_width=True)
+    if st.button("Load Detail Records"):
+        df_detail = db.execute(apply_filters(f"SELECT CleanDate, codigoOC, NombreOC, City FROM {DATA_SOURCE} WHERE 1=1") + " LIMIT 100").df()
+        st.dataframe(df_detail, use_container_width=True)
