@@ -8,10 +8,10 @@ import random
 st.set_page_config(
     page_title="Ramp-Up: Intelligence Dashboard", 
     layout="wide",
-    initial_sidebar_state="expanded"  # <--- THIS FORCES IT OPEN!
+    initial_sidebar_state="expanded"
 )
 
-# --- CSS MAGIC (Ghost Mode & White Text)  ---
+# --- CSS MAGIC (Surgical Ghost Mode)  ---
 def set_design():
     bg_url = "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop"
     st.markdown(
@@ -41,14 +41,33 @@ def set_design():
              background-color: rgba(0, 0, 0, 0.6);
          }}
          
-         /* 5. GHOST MODE: HIDE MENUS BUT KEEP SIDEBAR TOGGLE 👻 */
-         #MainMenu {{visibility: hidden;}}
-         footer {{visibility: hidden;}}
-         .stDeployButton {{display:none;}}
+         /* 5. SURGICAL GHOST MODE  */
+         /* Hide the Deploy button specifically */
+         .stDeployButton {{
+             visibility: hidden;
+         }}
          
-         /* We do NOT hide the header anymore, just make it transparent */
-         [data-testid="stHeader"] {{
-             background-color: rgba(0,0,0,0);
+         /* Hide the 3-dots menu (Optional - remove this if you want the menu back) */
+         #MainMenu {{
+             visibility: hidden;
+         }}
+         
+         /* Hide Footer */
+         footer {{
+             visibility: hidden;
+         }}
+
+         /* CRITICAL: Make the header transparent but VISIBLE so the sidebar button works */
+         header {{
+             visibility: visible !important;
+             background-color: rgba(0,0,0,0) !important;
+         }}
+         
+         /* Force the sidebar toggle button to be visible and white */
+         [data-testid="collapsedControl"] {{
+             visibility: visible !important;
+             color: white !important;
+             z-index: 999999 !important;
          }}
          
          </style>
@@ -125,7 +144,7 @@ REMOTE_TABLE = f"read_csv('{CSV_FILE}', delim=';', header=True, encoding='cp1252
 # ==========================================
 #  SIDEBAR (ALL REGIONS + MEMES)
 # ==========================================
-st.sidebar.header(" Global Slicers")
+st.sidebar.header("🔍 Global Slicers")
 
 # 1. THE FULL REGION LIST
 region_options = [
@@ -165,7 +184,7 @@ st.sidebar.image(chosen_image, caption="Daily Motivation", use_container_width=T
 
 
 # --- MAIN TITLE ---
-st.markdown("<h1 style='text-align: center; color: white; text-shadow: 2px 2px 4px #000000;'>🚀 Ramp-Up: Interactive Intelligence</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; color: white; text-shadow: 2px 2px 4px #000000;'> Ramp-Up: Interactive Intelligence</h1>", unsafe_allow_html=True)
 
 # --- QUERY BUILDER FUNCTION ---
 def apply_filters(base_sql):
@@ -250,7 +269,7 @@ with tab3:
     st.markdown("###  Deep Dive Data")
     limit_slider = st.slider("Rows to show", 10, 500, 50)
     
-    if st.button(" Fetch Details"):
+    if st.button("🔎 Fetch Details"):
         sql_raw = f"SELECT codigoOC, NombreOC, DescripcionOC, RegionUnidadCompra, Proveedor FROM {REMOTE_TABLE} WHERE 1=1"
         sql_raw = apply_filters(sql_raw) + f" LIMIT {limit_slider}"
         with st.spinner("Retrieving records..."):
