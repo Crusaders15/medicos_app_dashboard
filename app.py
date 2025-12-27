@@ -113,7 +113,7 @@ st.sidebar.header("Global Slicers")
 
 # 1. NEW BASE URL (Copy this from your Cloudflare R2 Settings tab)
 # Look for 'Public Development URL'
-base_url = "https://pub-your-unique-id.r2.dev" 
+base_url = "https://pub-a626d3085678426eae26e41ff821191f.r2.dev" 
 
 # 2. UPDATED MEME LIST
 # These filenames match exactly what you uploaded to your R2 'Memes' folder
@@ -222,4 +222,5 @@ with t5:
         with pd.ExcelWriter(out, engine='xlsxwriter') as w:
             df_v.to_excel(w, index=False)
         st.download_button("Export to Excel", data=out.getvalue(), file_name="market_data.xlsx")
+
 
