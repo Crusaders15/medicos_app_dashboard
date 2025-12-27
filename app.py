@@ -11,7 +11,7 @@ st.set_page_config(
     initial_sidebar_state="expanded" 
 )
 
-# --- CSS MAGIC (Safe Mode)  ---
+# --- CSS MAGIC (The Sniper Fix ) ---
 def set_design():
     bg_url = "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop"
     st.markdown(
@@ -41,11 +41,28 @@ def set_design():
              background-color: rgba(0, 0, 0, 0.6);
          }}
          
-         /* 5. SAFE CLEANUP (Only hide footer and deploy button) */
-         .stDeployButton {{visibility: hidden;}}
-         footer {{visibility: hidden;}}
+         /* 5. THE SNIPER SHOTS 🔫 */
          
-         /* WE REMOVED THE HEADER HIDING CODE TO BRING THE ARROW BACK */
+         /* Kill the Toolbar (Share, Star, Menu) */
+         [data-testid="stToolbarActions"] {{
+             display: none !important;
+         }}
+         
+         /* Kill the colorful decoration line at the top */
+         [data-testid="stDecoration"] {{
+             display: none !important;
+         }}
+
+         /* Kill the Footer */
+         footer {{
+             visibility: hidden;
+         }}
+         
+         /* ENSURE HEADER IS VISIBLE (For the Arrow) */
+         header {{
+             visibility: visible !important;
+             background-color: rgba(0,0,0,0) !important;
+         }}
          
          </style>
          """,
@@ -178,7 +195,7 @@ tab1, tab2, tab3 = st.tabs([" Super Pivot", " Leaderboards", " Detail Detective"
 
 # === TAB 1: SUPER PIVOT ===
 with tab1:
-    st.markdown("### 🔎 At a Glance")
+    st.markdown("###  At a Glance")
     
     if st.button(" Update Dashboard Metrics", type="primary"):
         sql_metrics = f"SELECT COUNT(*) as TotalTenders FROM {REMOTE_TABLE} WHERE 1=1"
@@ -224,7 +241,7 @@ with tab1:
 # === TAB 2: LEADERBOARDS ===
 with tab2:
     st.markdown(f"###  Top Players ({selected_region})")
-    if st.button(" Load Leaderboards"):
+    if st.button("Load Leaderboards"):
         col1, col2 = st.columns(2)
         
         with col1:
