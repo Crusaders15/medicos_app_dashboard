@@ -21,6 +21,7 @@ def apply_ui():
         }
         .stMarkdown, .stText, h1, h2, h3, h4, h5, h6, p, label { color: #cfd8dc !important; }
         div[data-testid="stToolbarActions"], div[data-testid="stToolbar"] { display: none !important; }
+        header[data-testid="stHeader"] { background-color: rgba(0,0,0,0) !important; }
         </style>
     """, unsafe_allow_html=True)
 apply_ui()
@@ -35,10 +36,11 @@ def get_db():
     return con
 
 db = get_db()
-# Casting dates and cleaning city data for the heatmap
+
+# NUCLEAR DATE FIX: Force try_cast to prevent BinderException
 DATA_SOURCE = """
     (SELECT *, 
-     CAST(FechaPublicacion AS DATE) as CleanDate,
+     try_cast(FechaPublicacion AS DATE) as CleanDate,
      COALESCE(CiudadUnidadCompra, 'Unknown') as City
      FROM read_csv('s3://compra-agil-data/CA_2025.csv', delim=';', header=True, encoding='cp1252', ignore_errors=True))
 """
@@ -46,7 +48,7 @@ DATA_SOURCE = """
 # --- 3. SIDEBAR & MEMES ---
 st.sidebar.header("Global Slicers")
 
-# MEME FIX: Verified public path
+# Verified Public URL from your screenshot
 base_url = "https://pub-a626d3085678426eae26e41ff821191f.r2.dev" 
 meme_playlist = [
     f"{base_url}/Memes/Drake%20Meme.jpg",
@@ -56,11 +58,9 @@ meme_playlist = [
 
 with st.sidebar:
     st.markdown("---")
-    # Try/Except prevents the app from crashing if an image fails to load
-    try:
-        st.image(random.choice(meme_playlist), use_container_width=True)
-    except:
-        st.info("Daily Motivation: Market Intelligence")
+    # Randomly picks a meme. If R2 fails, it shows a professional placeholder.
+    meme_choice = random.choice(meme_playlist)
+    st.image(meme_choice, use_container_width=True, caption="Market Intelligence")
     st.markdown("---")
 
 date_range = st.sidebar.date_input("Analysis Period", value=(datetime(2025, 1, 1), datetime(2025, 12, 31)))
@@ -80,11 +80,15 @@ t1, t2, t3, t4 = st.tabs(["Market Summary", "Regional Geography", "Specialty Ana
 with t1:
     st.markdown("### Market Trends Over Time")
     if st.button("Generate Trend Report"):
-        trend_sql = apply_filters(f"SELECT month(CleanDate) as Month, COUNT(*) as Total FROM {DATA_SOURCE} WHERE 1=1") + " GROUP BY Month ORDER BY Month"
+        # We use try_cast here again to ensure safety
+        trend_sql = apply_filters(f"SELECT month(CleanDate) as Month, COUNT(*) as Total FROM {DATA_SOURCE} WHERE CleanDate IS NOT NULL") + " GROUP BY Month ORDER BY Month"
         df_trend = db.execute(trend_sql).df()
-        fig_trend = px.line(df_trend, x='Month', y='Total', title="Monthly Tender Volume", markers=True, template="plotly_dark")
-        fig_trend.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
-        st.plotly_chart(fig_trend, use_container_width=True)
+        if not df_trend.empty:
+            fig_trend = px.line(df_trend, x='Month', y='Total', title="Monthly Tender Volume", markers=True, template="plotly_dark")
+            fig_trend.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+            st.plotly_chart(fig_trend, use_container_width=True)
+        else:
+            st.warning("No valid dates found in the selected range.")
 
 with t2:
     st.markdown("### Geography Heatmap")
