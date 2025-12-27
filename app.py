@@ -2,11 +2,12 @@ import streamlit as st
 import duckdb
 import pandas as pd
 import plotly.express as px
+import random
 
 # --- PAGE CONFIG ---
 st.set_page_config(page_title="Ramp-Up: Intelligence Dashboard", layout="wide")
 
-# --- CSS MAGIC (Ghost Mode & White Text) ---
+# --- CSS MAGIC (Ghost Mode & White Text)  ---
 def set_design():
     bg_url = "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop"
     st.markdown(
@@ -22,7 +23,7 @@ def set_design():
          }}
          
          /* 2. FORCE TEXT TO BE WHITE */
-         .stMarkdown, .stText, h1, h2, h3, h4, h5, h6, p, li, span, label {{
+         .stMarkdown, .stText, h1, h2, h3, h4, h5, h6, p, li, span, label, div {{
              color: white !important;
          }}
          
@@ -36,7 +37,7 @@ def set_design():
              background-color: rgba(0, 0, 0, 0.6);
          }}
          
-         /* 5. GHOST MODE: HIDE MENUS & GITHUB BUTTONS  */
+         /* 5. GHOST MODE: HIDE MENUS & GITHUB BUTTONS 👻 */
          #MainMenu {{visibility: hidden;}}
          footer {{visibility: hidden;}}
          header {{visibility: hidden;}}
@@ -48,8 +49,44 @@ def set_design():
      )
 set_design()
 
-# --- MAIN TITLE ---
-st.markdown("<h1 style='text-align: center; color: white; text-shadow: 2px 2px 4px #000000;'> Ramp-Up: Interactive Intelligence</h1>", unsafe_allow_html=True)
+# ==========================================
+#  SECURITY SYSTEM (THE BOUNCER)
+# ==========================================
+def check_password():
+    """Returns `True` if the user had the correct password."""
+
+    if "password_correct" not in st.session_state:
+        st.session_state.password_correct = False
+
+    if st.session_state.password_correct:
+        return True
+
+    # Show input for password
+    st.markdown("<h1 style='text-align: center; color: white;'> Ramp-Up Intelligence</h1>", unsafe_allow_html=True)
+    st.write("") 
+    
+    col1, col2, col3 = st.columns([1, 2, 1])
+    with col2:
+        pwd_input = st.text_input("Enter Access Code", type="password")
+        if pwd_input:
+            # We look for the password in secrets. 
+            # If you haven't set it yet, use a default fallback to prevent crashing.
+            secret_pwd = st.secrets.get("GENERAL", {}).get("APP_PASSWORD", "licitakiller2025")
+            
+            if pwd_input == secret_pwd:
+                st.session_state.password_correct = True
+                st.rerun()  
+            else:
+                st.error("⛔ Access Denied")
+    
+    return False
+
+if not check_password():
+    st.stop() 
+
+# ------------------------------------------------------------------
+# 🟢 APP START
+# ------------------------------------------------------------------
 
 # --- CONNECT TO DATA (R2) ---
 @st.cache_resource
@@ -77,24 +114,51 @@ except Exception as e:
 CSV_FILE = "s3://compra-agil-data/CA_2025.csv"
 REMOTE_TABLE = f"read_csv('{CSV_FILE}', delim=';', header=True, encoding='cp1252', ignore_errors=True)"
 
-# ==========================================
-#  SIDEBAR (FILTERS + FUNNY IMAGE)
-# ==========================================
-st.sidebar.header(" Global Slicers")
 
-# 1. The Filters
-region_options = ["All Regions", "Region Metropolitana de Santiago", "Region de Valparaiso", "Region del Biobio", "Region de Antofagasta", "Region de La Araucania", "Region de Los Lagos"]
+# ==========================================
+#  SIDEBAR (ALL REGIONS + MEMES)
+# ==========================================
+st.sidebar.header("🔍 Global Slicers")
+
+# 1. THE FULL REGION LIST (Based on your Database)
+region_options = [
+    "All Regions",
+    "Region Metropolitana de Santiago",
+    "Region de Antofagasta",
+    "Region de Arica y Parinacota",
+    "Region de Atacama",
+    "Region de Aysen del General Carlos Ibanez del Campo",
+    "Region de Coquimbo",
+    "Region de La Araucania",
+    "Region de Los Lagos",
+    "Region de Los Rios",
+    "Region de Magallanes y de la Antartica Chilena",
+    "Region de Tarapaca",
+    "Region de Valparaiso",
+    "Region del Biobio",
+    "Region del Libertador General Bernardo O'Higgins",
+    "Region del Maule",
+    "Region del Nuble"
+]
 selected_region = st.sidebar.selectbox(" Region", region_options)
 selected_keyword = st.sidebar.text_input(" Category/Product", placeholder="e.g. Computacion")
 
-# 2. Spacer to push image down
 st.sidebar.markdown("---") 
 st.sidebar.markdown("###  Internal Only")
 
-# 3.  THE FUNNY PICTURE (MOVED TO SIDEBAR!)
-# REPLACE THIS LINK with your funny picture link!
-funny_image_url = "https://drive.google.com/file/d/1EYKQjHeGVMkrpZyRd1n8XE6pQsOCGQ5S/view?usp=drive_link"
-st.sidebar.image(funny_image_url, caption="Authorized Personnel Only ", use_container_width=True)
+# 3. RANDOM MEME GENERATOR
+meme_playlist = [
+    "https://i.imgur.com/3sBrh.jpg",
+    "https://placehold.co/400x300/png?text=Felipe+Approved",
+    "https://placehold.co/400x300/png?text=Data+is+Money",
+    "https://placehold.co/400x300/png?text=RampUp+To+The+Moon",
+]
+chosen_image = random.choice(meme_playlist)
+st.sidebar.image(chosen_image, caption="Daily Motivation", use_container_width=True)
+
+
+# --- MAIN TITLE ---
+st.markdown("<h1 style='text-align: center; color: white; text-shadow: 2px 2px 4px #000000;'> Ramp-Up: Interactive Intelligence</h1>", unsafe_allow_html=True)
 
 # --- QUERY BUILDER FUNCTION ---
 def apply_filters(base_sql):
@@ -105,15 +169,14 @@ def apply_filters(base_sql):
     return base_sql
 
 # ==========================================
-# THE TABS
+#  THE TABS
 # ==========================================
 tab1, tab2, tab3 = st.tabs([" Super Pivot", " Leaderboards", " Detail Detective"])
 
 # === TAB 1: SUPER PIVOT ===
 with tab1:
-    st.markdown("###  At a Glance")
+    st.markdown("### 🔎 At a Glance")
     
-    # METRICS BUTTON (Lazy Loading)
     if st.button(" Update Dashboard Metrics", type="primary"):
         sql_metrics = f"SELECT COUNT(*) as TotalTenders FROM {REMOTE_TABLE} WHERE 1=1"
         sql_metrics = apply_filters(sql_metrics)
@@ -148,7 +211,6 @@ with tab1:
                 fig = px.bar(df_pivot, x='Total', y='GroupName', 
                              title=f"Top 15 by {dimension}",
                              color='Total', orientation='h', text_auto=True)
-                # Force Dark Theme Chart
                 fig.update_layout(template="plotly_dark", 
                                   paper_bgcolor='rgba(0,0,0,0)', 
                                   plot_bgcolor='rgba(0,0,0,0)', 
@@ -187,4 +249,3 @@ with tab3:
         with st.spinner("Retrieving records..."):
             df_raw = con.execute(sql_raw).df()
             st.dataframe(df_raw, use_container_width=True)
-
