@@ -4,8 +4,12 @@ import pandas as pd
 import plotly.express as px
 import random
 
-# --- PAGE CONFIG ---
-st.set_page_config(page_title="Ramp-Up: Intelligence Dashboard", layout="wide")
+# --- PAGE CONFIG (Force Sidebar Open) ---
+st.set_page_config(
+    page_title="Ramp-Up: Intelligence Dashboard", 
+    layout="wide",
+    initial_sidebar_state="expanded"  # <--- THIS FORCES IT OPEN!
+)
 
 # --- CSS MAGIC (Ghost Mode & White Text)  ---
 def set_design():
@@ -37,11 +41,15 @@ def set_design():
              background-color: rgba(0, 0, 0, 0.6);
          }}
          
-         /* 5. GHOST MODE: HIDE MENUS & GITHUB BUTTONS 👻 */
+         /* 5. GHOST MODE: HIDE MENUS BUT KEEP SIDEBAR TOGGLE 👻 */
          #MainMenu {{visibility: hidden;}}
          footer {{visibility: hidden;}}
-         header {{visibility: hidden;}}
          .stDeployButton {{display:none;}}
+         
+         /* We do NOT hide the header anymore, just make it transparent */
+         [data-testid="stHeader"] {{
+             background-color: rgba(0,0,0,0);
+         }}
          
          </style>
          """,
@@ -50,7 +58,7 @@ def set_design():
 set_design()
 
 # ==========================================
-#  SECURITY SYSTEM (THE BOUNCER)
+#  SECURITY SYSTEM
 # ==========================================
 def check_password():
     """Returns `True` if the user had the correct password."""
@@ -70,7 +78,6 @@ def check_password():
         pwd_input = st.text_input("Enter Access Code", type="password")
         if pwd_input:
             # We look for the password in secrets. 
-            # If you haven't set it yet, use a default fallback to prevent crashing.
             secret_pwd = st.secrets.get("GENERAL", {}).get("APP_PASSWORD", "licitakiller2025")
             
             if pwd_input == secret_pwd:
@@ -118,9 +125,9 @@ REMOTE_TABLE = f"read_csv('{CSV_FILE}', delim=';', header=True, encoding='cp1252
 # ==========================================
 #  SIDEBAR (ALL REGIONS + MEMES)
 # ==========================================
-st.sidebar.header("🔍 Global Slicers")
+st.sidebar.header(" Global Slicers")
 
-# 1. THE FULL REGION LIST (Based on your Database)
+# 1. THE FULL REGION LIST
 region_options = [
     "All Regions",
     "Region Metropolitana de Santiago",
@@ -158,7 +165,7 @@ st.sidebar.image(chosen_image, caption="Daily Motivation", use_container_width=T
 
 
 # --- MAIN TITLE ---
-st.markdown("<h1 style='text-align: center; color: white; text-shadow: 2px 2px 4px #000000;'> Ramp-Up: Interactive Intelligence</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='text-align: center; color: white; text-shadow: 2px 2px 4px #000000;'>🚀 Ramp-Up: Interactive Intelligence</h1>", unsafe_allow_html=True)
 
 # --- QUERY BUILDER FUNCTION ---
 def apply_filters(base_sql):
