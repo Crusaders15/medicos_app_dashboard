@@ -20,14 +20,13 @@ def apply_stable_ui():
             background-blend-mode: darken;
         }
         .stMarkdown, .stText, h1, h2, h3, h4, h5, h6, p, label { color: #cfd8dc !important; }
-        /* Hide platform clutter */
         div[data-testid="stToolbarActions"], div[data-testid="stToolbar"] { display: none !important; }
         header[data-testid="stHeader"] { background-color: rgba(0,0,0,0) !important; }
         </style>
     """, unsafe_allow_html=True)
 apply_stable_ui()
 
-# --- 2. DATA INFRASTRUCTURE (RECOVERY LOGIC) ---
+# --- 2. DATA CONNECTION ---
 @st.cache_resource
 def get_db():
     creds = st.secrets["R2"]
@@ -38,19 +37,16 @@ def get_db():
 
 db = get_db()
 CSV_PATH = "s3://compra-agil-data/CA_2025.csv"
-# Stable Data Source definition
 DATA_SOURCE = f"read_csv('{CSV_PATH}', delim=';', header=True, encoding='cp1252', ignore_errors=True)"
 
-# --- 3. SIDEBAR: FILTERS TOP, MEMES BOTTOM ---
+# --- 3. SIDEBAR & MEMES ---
+st.sidebar.header("Global Slicers")
+date_range = st.sidebar.date_input("Analysis Period", value=(datetime(2025, 1, 1), datetime(2025, 12, 31)))
+target_region = st.sidebar.selectbox("Region", ["All Regions", "Region Metropolitana de Santiago", "Region de Antofagasta", "Region de Valparaiso", "Region del Biobio"])
+
 with st.sidebar:
-    st.header("Global Slicers")
-    date_range = st.date_input("Analysis Period", value=(datetime(2025, 1, 1), datetime(2025, 12, 31)))
-    target_region = st.selectbox("Region", ["All Regions", "Region Metropolitana de Santiago", "Region de Antofagasta", "Region de Valparaiso", "Region del Biobio"])
-    
-    # Push memes to the bottom
-    for _ in range(10): st.write("") 
+    for _ in range(10): st.write("") # Spacer
     st.markdown("---")
-    
     base_url = "https://pub-a626d3085678426eae26e41ff821191f.r2.dev" 
     meme_playlist = [
         f"{base_url}/Memes/Drake%20Meme.jpg",
@@ -58,7 +54,7 @@ with st.sidebar:
         f"{base_url}/Memes/Drake%20meme%20afwt19.jpg"
     ]
     st.image(random.choice(meme_playlist), use_container_width=True)
-    st.caption("Stable Recovery v38.0")
+    st.caption("Baseline Recovery v39.0")
 
 # --- 4. DATA FILTERING ---
 def apply_filters(base_sql):
@@ -66,7 +62,7 @@ def apply_filters(base_sql):
     if target_region != "All Regions":
         sql += f" AND RegionUnidadCompra = '{target_region}'"
     if len(date_range) == 2:
-        # Use try_cast to prevent BinderException crashes
+        # Nuclear cast fix to prevent BinderExceptions
         sql += f" AND try_cast(FechaPublicacion AS DATE) BETWEEN '{date_range[0]}' AND '{date_range[1]}'"
     return sql
 
@@ -77,5 +73,25 @@ tabs = st.tabs(["Market Summary", "Geography Analysis", "Specialty Scan", "Raw D
 
 with tabs[0]:
     if st.button("Calculate Metrics", type="primary"):
-        with st.spinner("Accessing R2 Storage..."):
-            res = db.execute(apply_filters(f"SELECT COUNT(*) as Total FROM {DATA_SOURCE} WHERE 1=1
+        res = db.execute(apply_filters(f"SELECT COUNT(*) as Total FROM {DATA_SOURCE} WHERE 1=1")).df()
+        st.metric("Total Contracts identified", f"{res['Total'][0]:,}")
+
+with tabs[1]:
+    if st.button("Analyze Top Cities"):
+        geo_sql = apply_filters(f"SELECT CiudadUnidadCompra as City, COUNT(*) as Count FROM {DATA_SOURCE} WHERE City IS NOT NULL") + " GROUP BY City ORDER BY Count DESC LIMIT 15"
+        df_geo = db.execute(geo_sql).df()
+        st.bar_chart(df_geo.set_index("City"))
+
+with tabs[2]:
+    if st.button("Scan Professional Specialties"):
+        spec_map = {"Psicologia": "Psicolo", "TENS": "TENS", "Enfermeria": "Enfermer"}
+        results = []
+        for label, keyword in spec_map.items():
+            count = db.execute(apply_filters(f"SELECT COUNT(*) FROM {DATA_SOURCE} WHERE DescripcionOC ILIKE '%{keyword}%'")).df().iloc[0,0]
+            results.append({"Specialty": label, "Count": count})
+        st.dataframe(pd.DataFrame(results), use_container_width=True)
+
+with tabs[3]:
+    if st.button("Load 100 Records"):
+        df_detail = db.execute(apply_filters(f"SELECT codigoOC, NombreOC, Proveedor FROM {DATA_SOURCE} WHERE 1=1") + " LIMIT 100").df()
+        st.dataframe(df_detail, use_container_width=True)
