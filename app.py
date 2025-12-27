@@ -13,7 +13,7 @@ st.set_page_config(
     initial_sidebar_state="expanded" 
 )
 
-# --- PROFESSIONAL UI DESIGN (NUCLEAR FIX) ---
+# --- PROFESSIONAL UI DESIGN (THE NUCLEAR FIX) ---
 def set_design():
     bg_url = "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop"
     st.markdown(
@@ -33,7 +33,7 @@ def set_design():
              background-color: rgba(0, 0, 0, 0.6);
          }}
 
-         /* TOOLBAR REMOVAL: Targets platform buttons */
+         /* SURGICAL BUTTON REMOVAL */
          div[data-testid="stToolbarActions"], 
          .stToolbarActions,
          div[data-testid="stToolbar"] {{
@@ -49,7 +49,7 @@ def set_design():
          footer {{ visibility: hidden !important; }}
          [data-testid="stDecoration"] {{ display: none !important; }}
          
-         /* Sidebar arrow control */
+         /* Ensure Sidebar toggle is white and always visible */
          [data-testid="stSidebarCollapsedControl"] {{
              display: block !important;
              color: white !important;
@@ -65,7 +65,7 @@ set_design()
 def check_password():
     if "password_correct" not in st.session_state:
         st.session_state.password_correct = False
-    if st.session_state.authenticated if 'authenticated' in st.session_state else st.session_state.password_correct:
+    if st.session_state.password_correct:
         return True
 
     st.markdown("<h1 style='text-align: center;'>Ramp-Up Intelligence</h1>", unsafe_allow_html=True)
@@ -148,8 +148,9 @@ def apply_filters(base_sql):
         sql += f" AND FechaPublicacion BETWEEN '{start_date}' AND '{end_date}'"
     return sql
 
-t1, t2, t3, t4 = st.tabs(["Market Summary", "Leaderboards", "Competitive Analysis", "Detail View"])
+t1, t2, t3, t4, t5 = st.tabs(["Market Summary", "Specialty Analysis", "Leaderboards", "Competitive Analysis", "Detail View"])
 
+# --- TAB 1: SUMMARY ---
 with t1:
     if st.button("Refresh Summary Data", type="primary"):
         res = db.execute(apply_filters(f"SELECT COUNT(*) as Total FROM {DATA_SOURCE} WHERE 1=1")).df()
@@ -167,7 +168,36 @@ with t1:
             chart.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(chart, use_container_width=True)
 
+# --- TAB 2: SPECIALTY ANALYSIS ---
 with t2:
+    st.header("Professional Specialty Distribution")
+    specialty_map = {
+        "Psicologia": "Psicolo",
+        "Psiquiatria": "Psiquiatr",
+        "Neurologia": "Neurolo",
+        "TENS": "TENS",
+        "Enfermeria": "Enfermer"
+    }
+    
+    if st.button("Analyze Professional Demand"):
+        results = []
+        for label, keyword in specialty_map.items():
+            query = apply_filters(f"SELECT COUNT(*) as Total FROM {DATA_SOURCE} WHERE (DescripcionOC ILIKE '%{keyword}%' OR NombreOC ILIKE '%{keyword}%')")
+            count = db.execute(query).df()["Total"][0]
+            results.append({"Specialty": label, "Count": count})
+        
+        df_spec = pd.DataFrame(results)
+        col_pie, col_tab = st.columns(2)
+        with col_pie:
+            fig_pie = px.pie(df_spec, values='Count', names='Specialty', title="Professional Demand Breakdown", hole=.4, template="plotly_dark")
+            fig_pie.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+            st.plotly_chart(fig_pie, use_container_width=True)
+        with col_tab:
+            st.write("**Counts by Specialty**")
+            st.dataframe(df_spec, use_container_width=True)
+
+# --- TAB 3: LEADERBOARDS ---
+with t3:
     st.markdown("### Performance Leaderboards")
     supplier_filter = st.text_input("Filter by Supplier Name", placeholder="Search...")
     if st.button("Load Analytics"):
@@ -181,7 +211,8 @@ with t2:
             st.write("**Top Purchasing Institutions**")
             st.dataframe(db.execute(apply_filters(f"SELECT Institucion, COUNT(*) as Buys FROM {DATA_SOURCE} WHERE 1=1") + " GROUP BY Institucion ORDER BY Buys DESC LIMIT 10").df(), use_container_width=True)
 
-with t3:
+# --- TAB 4: COMPETITIVE ANALYSIS ---
+with t4:
     st.markdown("### Supplier Head-to-Head")
     col_a, col_b = st.columns(2)
     with col_a:
@@ -193,7 +224,7 @@ with t3:
         compare_sql = apply_filters(f"""
             SELECT Proveedor, COUNT(*) as Contracts 
             FROM {DATA_SOURCE} 
-            WHERE Proveedor ILIKE '%{comp_1}%' OR Proveedor ILIKE '%{comp_2}%'
+            WHERE (Proveedor ILIKE '%{comp_1}%' OR Proveedor ILIKE '%{comp_2}%')
             GROUP BY Proveedor
         """)
         df_comp = db.execute(compare_sql).df()
@@ -203,9 +234,10 @@ with t3:
             st.plotly_chart(fig_comp, use_container_width=True)
             st.dataframe(df_comp, use_container_width=True)
         else:
-            st.warning("No data found for the specified suppliers in this period/region.")
+            st.warning("No data found for the specified suppliers in this period.")
 
-with t4:
+# --- TAB 5: DETAIL VIEW ---
+with t5:
     limit = st.slider("Record Limit", 10, 1000, 100)
     if st.button("Load Detailed Records"):
         df_view = db.execute(apply_filters(f"SELECT codigoOC, NombreOC, DescripcionOC, RegionUnidadCompra, Proveedor FROM {DATA_SOURCE} WHERE 1=1") + f" LIMIT {limit}").df()
