@@ -1,122 +1,61 @@
 import streamlit as st
 import duckdb
 import pandas as pd
-import datetime
 from pydantic import BaseModel
+from datetime import date
 from typing import Optional, Tuple
 
-# --- 1. CONFIGURATION (PYDANTIC) ---
-class DashboardConfig(BaseModel):
-    title: str = "Ramp-Up: Market Intelligence"
-    table_name: str = "market_data"
-    file_path: str = "data.csv"
-    bg_color: str = "#D3D3D3"
-    sidebar_color: str = "#BDB76B"
-    text_color: str = "#2E2E2E"
+# 1. Pydantic model for data safety
+class DashboardFilters(BaseModel):
+    date_range: Optional[Tuple[date, date]] = None
+    region: str = "All"
+    product_category: Optional[str] = None
 
-class FilterSchema(BaseModel):
-    region: str
-    product_cat: Optional[str] = None
-    dates: Tuple[datetime.date, datetime.date]
-
-config = DashboardConfig()
-
-# --- 2. LAYOUT & STYLING ---
-st.set_page_config(page_title=config.title, layout="wide")
-
-st.markdown(f"""
-    <style>
-    .stApp {{ background-color: {config.bg_color}; color: {config.text_color}; }}
-    .stSidebar {{ background-color: {config.sidebar_color} !important; }}
-    h1, h2, h3 {{ color: #4A4A4A !important; }}
-    </style>
-    """, unsafe_allow_html=True)
-
-# --- 3. DATA & DATABASE ---
+# 2. Setup the persistent Database connection
 @st.cache_resource
-def get_db_connection():
-    # Persistent in-memory DuckDB connection
+def get_db_con():
     return duckdb.connect(database=':memory:')
 
-con = get_db_connection()
+st.set_page_config(page_title="Ramp-Up: Market Intelligence", layout="wide")
+con = get_db_con()
 
+# 3. Load data and REGISTER it (This fixes the BinderException)
 @st.cache_data
-def load_and_register():
-    try:
-        df = pd.read_csv(config.file_path)
-        # This registration prevents the BinderException on line 108
-        con.register(config.table_name, df)
-        return df
-    except Exception as e:
-        st.error(f"Could not find or load {config.file_path}. Error: {e}")
-        return None
+def load_data():
+    df = pd.read_csv("data.csv") # Make sure your file is named data.csv
+    con.register("market_data", df)
+    return df
 
-df = load_and_register()
+df = load_data()
 
-# --- 4. SIDEBAR FILTERS ---
+# 4. Sidebar UI
 st.sidebar.title("Global Slicers")
+raw_date = st.sidebar.date_input("Analysis Period", value=(date(2025, 1, 1), date(2025, 12, 31)))
+raw_region = st.sidebar.selectbox("Region", options=["All"] + sorted(df['Region'].unique().tolist()))
+raw_product = st.sidebar.text_input("Product Category")
 
-# Analysis Period
-date_range = st.sidebar.date_input(
-    "Analysis Period", 
-    value=(datetime.date(2025, 1, 1), datetime.date(2025, 12, 31))
+# 5. Validate filters
+filters = DashboardFilters(
+    date_range=raw_date,
+    region=raw_region,
+    product_category=raw_product if raw_product else None
 )
 
-# Dynamic Region List
-regions = ["All"] + sorted(df['Region'].unique().tolist()) if df is not None else ["All"]
-selected_region = st.sidebar.selectbox("Region", options=regions)
+# 6. Main Dashboard Logic
+st.title("Ramp-Up: Market Intelligence")
+tabs = st.tabs(["Market Summary", "Specialty Analysis", "Leaderboards"])
 
-# Product Search
-product_input = st.sidebar.text_input("Product Category", placeholder="Example: Medical")
-
-st.sidebar.markdown("---")
-st.sidebar.subheader("Internal Use Only")
-st.sidebar.info("Market Intelligence")
-
-# --- 5. MAIN DASHBOARD ---
-st.title(config.title)
-
-if df is not None:
-    # Ensure a full date range is selected
-    if isinstance(date_range, tuple) and len(date_range) == 2:
-        # Validate inputs via Pydantic
-        filters = FilterSchema(
-            region=selected_region,
-            product_cat=product_input,
-            dates=date_range
-        )
-
-        tabs = st.tabs(["Market Summary", "Specialty Analysis", "Leaderboards", "Competitive Analysis", "Detail View"])
-
-        with tabs[0]:
-            if st.button("Refresh Summary Data"):
-                st.rerun()
-
-            try:
-                # Build SQL logic
-                where_clauses = ["1=1"]
-                if filters.region != "All":
-                    where_clauses.append(f"Region = '{filters.region}'")
-                if filters.product_cat:
-                    where_clauses.append(f"ProductCategory ILIKE '%{filters.product_cat}%'")
-                
-                sql_query = f"SELECT COUNT(*) as Total FROM {config.table_name} WHERE " + " AND ".join(where_clauses)
-                
-                # Execute query using the persistent connection
-                res = con.execute(sql_query).df()
-                total_records = res['Total'].iloc[0]
-                
-                # Display Result
-                col1, col2, col3 = st.columns(3)
-                col1.metric("Total Opportunities", f"{total_records:,}")
-                
-                st.subheader("Data Preview")
-                st.dataframe(df.head(100), use_container_width=True)
-
-            except Exception as e:
-                st.error(f"Query Execution Error: {e}")
-                st.info("Check if your CSV columns match exactly: 'Region', 'ProductCategory'.")
-    else:
-        st.info("Please select both a Start and End date in the sidebar.")
-else:
-    st.warning("Please ensure 'data.csv' is uploaded to your GitHub repository.")
+with tabs[0]:
+    query = "SELECT COUNT(*) as Total FROM market_data WHERE 1=1"
+    
+    if filters.region != "All":
+        query += f" AND Region = '{filters.region}'"
+    if filters.product_category:
+        query += f" AND ProductCategory ILIKE '%{filters.product_category}%'"
+    
+    # Executing the fixed line
+    try:
+        res = con.execute(query).df()
+        st.metric("Total Opportunities", f"{res['Total'].iloc[0]:,}")
+    except Exception as e:
+        st.error(f"Error: {e}")
