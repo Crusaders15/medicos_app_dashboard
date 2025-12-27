@@ -105,16 +105,16 @@ def apply_filters(base_sql):
     return base_sql
 
 # ==========================================
-# 📊 THE TABS
+# THE TABS
 # ==========================================
 tab1, tab2, tab3 = st.tabs([" Super Pivot", " Leaderboards", " Detail Detective"])
 
 # === TAB 1: SUPER PIVOT ===
 with tab1:
-    st.markdown("### 🔎 At a Glance")
+    st.markdown("###  At a Glance")
     
     # METRICS BUTTON (Lazy Loading)
-    if st.button("🔄 Update Dashboard Metrics", type="primary"):
+    if st.button(" Update Dashboard Metrics", type="primary"):
         sql_metrics = f"SELECT COUNT(*) as TotalTenders FROM {REMOTE_TABLE} WHERE 1=1"
         sql_metrics = apply_filters(sql_metrics)
         
@@ -187,3 +187,4 @@ with tab3:
         with st.spinner("Retrieving records..."):
             df_raw = con.execute(sql_raw).df()
             st.dataframe(df_raw, use_container_width=True)
+
