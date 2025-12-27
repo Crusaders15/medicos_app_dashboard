@@ -84,7 +84,7 @@ st.sidebar.markdown("---")
 
 # 3. 😂 THE FUNNY PICTURE (Now in Sidebar!)
 # Replace with your real image link!
-funny_image_url = "https://drive.google.com/file/d/1EYKQjHeGVMkrpZyRd1n8XE6pQsOCGQ5S/view?usp=drive_link"
+funny_image_url = "https://placehold.co/400x300/png?text=Felipe+Approved"
 st.sidebar.image(funny_image_url, caption="Internal Use Only 😉", use_container_width=True)
 
 # --- QUERY BUILDER FUNCTION ---
@@ -98,7 +98,7 @@ def apply_filters(base_sql):
 # ==========================================
 # 📊 THE TABS
 # ==========================================
-tab1, tab2, tab3 = st.tabs(["Super Pivot", "Leaderboards", "Detail Detective"])
+tab1, tab2, tab3 = st.tabs(["🧮 Super Pivot", "🏆 Leaderboards", "🕵️ Detail Detective"])
 
 # === TAB 1: SUPER PIVOT ===
 with tab1:
@@ -119,7 +119,7 @@ with tab1:
 
     st.divider()
 
-    st.markdown("### Slice & Dice Volume")
+    st.markdown("### 🧮 Slice & Dice Volume")
     col_group, col_viz = st.columns([1, 3])
     
     with col_group:
@@ -129,7 +129,7 @@ with tab1:
                              index=3) 
     
     with col_viz:
-        if st.button("Render Chart"):
+        if st.button("📊 Render Chart"):
             base_query = f"SELECT {dimension} as GroupName, COUNT(*) as Total FROM {REMOTE_TABLE} WHERE 1=1"
             filtered_query = apply_filters(base_query)
             final_query = filtered_query + " GROUP BY GroupName ORDER BY Total DESC LIMIT 15"
@@ -149,8 +149,8 @@ with tab1:
 
 # === TAB 2: LEADERBOARDS ===
 with tab2:
-    st.markdown(f"### Top Players ({selected_region})")
-    if st.button("Load Leaderboards"):
+    st.markdown(f"### 🏆 Top Players ({selected_region})")
+    if st.button("🏆 Load Leaderboards"):
         col1, col2 = st.columns(2)
         
         with col1:
@@ -169,7 +169,7 @@ with tab2:
 
 # === TAB 3: DETAIL DETECTIVE ===
 with tab3:
-    st.markdown("### Deep Dive Data")
+    st.markdown("### 🕵️ Deep Dive Data")
     limit_slider = st.slider("Rows to show", 10, 500, 50)
     
     if st.button("🔎 Fetch Details"):
