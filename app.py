@@ -73,7 +73,7 @@ def check_password():
     st.markdown("<h1 style='text-align: center;'>Ramp-Up Intelligence</h1>", unsafe_allow_html=True)
     col1, col2, col3 = st.columns([1, 2, 1])
     with col2:
-        pwd_input = st.text_input("Access Code", type="BichoGordito@15!")
+        pwd_input = st.text_input("Access Code", type="password")
         if pwd_input:
             secret_pwd = st.secrets.get("GENERAL", {}).get("APP_PASSWORD", "BichoGordito@15!")
             if pwd_input == secret_pwd:
@@ -214,5 +214,6 @@ with tab3:
             file_name="rampup_market_intelligence.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
+
 
 
