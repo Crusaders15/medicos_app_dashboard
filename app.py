@@ -11,7 +11,7 @@ st.set_page_config(
     initial_sidebar_state="expanded" 
 )
 
-# --- CSS MAGIC (The Invisibility Cloak 🧥) ---
+# --- CSS MAGIC (The Nuclear Option ) ---
 def set_design():
     bg_url = "https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop"
     st.markdown(
@@ -41,26 +41,32 @@ def set_design():
              background-color: rgba(0, 0, 0, 0.6);
          }}
          
-         /* 5. THE NUCLEAR OPTION  */
+         /* 5. UI CLEANUP (Hide Everything) */
          
-         /* Hide the Decoration Line */
+         /* Hide the top decoration bar */
          [data-testid="stDecoration"] {{display: none;}}
          
-         /* Hide the Footer */
-         footer {{visibility: hidden;}}
-         .stDeployButton {{visibility: hidden;}}
+         /* Hide the Toolbar (This targets the Share/Star buttons) */
+         [data-testid="stToolbar"] {{display: none !important;}}
          
-         /* HIDE THE WHOLE HEADER (This kills the buttons) */
-         header {{
-             visibility: hidden !important;
+         /* Hide the Header Action Elements (The container for the buttons) */
+         [data-testid="stHeaderActionElements"] {{display: none !important;}}
+         
+         /* Hide Footer & Deploy Button */
+         footer {{visibility: hidden;}}
+         .stDeployButton {{display: none;}}
+         
+         /* 6. HEADER VISIBILITY LOGIC */
+         /* We make the header background transparent */
+         [data-testid="stHeader"] {{
+             background-color: rgba(0,0,0,0);
          }}
          
-         /* BUT RESURRECT THE SIDEBAR TOGGLE (This brings back the arrow) */
-         /* We target both possible ID names Streamlit uses to be safe */
-         [data-testid="stSidebarCollapsedControl"], [data-testid="collapsedControl"] {{
-             visibility: visible !important;
+         /* We Ensure the Sidebar Toggle Arrow remains visible */
+         [data-testid="stSidebarCollapsedControl"] {{
+             display: block !important;
              color: white !important;
-             z-index: 999999 !important;
+             z-index: 100000 !important;
          }}
          
          </style>
@@ -137,7 +143,7 @@ REMOTE_TABLE = f"read_csv('{CSV_FILE}', delim=';', header=True, encoding='cp1252
 # ==========================================
 #  SIDEBAR (ALL REGIONS + MEMES)
 # ==========================================
-st.sidebar.header(" Global Slicers")
+st.sidebar.header("🔍 Global Slicers")
 
 # 1. THE FULL REGION LIST
 region_options = [
@@ -165,12 +171,13 @@ selected_keyword = st.sidebar.text_input(" Category/Product", placeholder="e.g. 
 st.sidebar.markdown("---") 
 st.sidebar.markdown("###  Internal Only")
 
-# 3. RANDOM MEME GENERATOR
+# 3. RANDOM MEME GENERATOR (Fixed Links)
 meme_playlist = [
-    "https://i.imgur.com/3sBrh.jpg",
     "https://placehold.co/400x300/png?text=Felipe+Approved",
     "https://placehold.co/400x300/png?text=Data+is+Money",
     "https://placehold.co/400x300/png?text=RampUp+To+The+Moon",
+    "https://placehold.co/400x300/png?text=Licitaciones+Won",
+    "https://placehold.co/400x300/png?text=Market+Domination"
 ]
 chosen_image = random.choice(meme_playlist)
 st.sidebar.image(chosen_image, caption="Daily Motivation", use_container_width=True)
@@ -262,7 +269,7 @@ with tab3:
     st.markdown("###  Deep Dive Data")
     limit_slider = st.slider("Rows to show", 10, 500, 50)
     
-    if st.button(" Fetch Details"):
+    if st.button("🔎 Fetch Details"):
         sql_raw = f"SELECT codigoOC, NombreOC, DescripcionOC, RegionUnidadCompra, Proveedor FROM {REMOTE_TABLE} WHERE 1=1"
         sql_raw = apply_filters(sql_raw) + f" LIMIT {limit_slider}"
         with st.spinner("Retrieving records..."):
