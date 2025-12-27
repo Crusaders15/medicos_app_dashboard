@@ -32,18 +32,25 @@ def set_design():
              background-color: rgba(0, 0, 0, 0.6);
          }}
 
-         /* TOOLBAR REMOVAL */
+         /* SURGICAL BUTTON REMOVAL */
+         /* This hides the toolbar actions on the right but keeps the header for the sidebar arrow */
          [data-testid="stHeaderActionElements"], 
          .stToolbarActions,
-         div[data-testid="stToolbar"],
-         header[data-testid="stHeader"] {{
+         div[data-testid="stToolbar"] {{
              display: none !important;
          }}
 
+         /* Ensure the header itself is transparent so it doesn't look like a bar */
+         header[data-testid="stHeader"] {{
+             background-color: rgba(0,0,0,0) !important;
+         }}
+
+         /* Hide the deployment button and footer */
          .stDeployButton {{ display: none !important; }}
          footer {{ visibility: hidden !important; }}
          [data-testid="stDecoration"] {{ display: none !important; }}
          
+         /* Ensure the sidebar toggle arrow is white and always visible */
          [data-testid="stSidebarCollapsedControl"] {{
              display: block !important;
              color: white !important;
@@ -170,7 +177,7 @@ with tab3:
         df_details = con.execute(apply_filters(f"SELECT codigoOC, NombreOC, DescripcionOC, RegionUnidadCompra, Proveedor FROM {REMOTE_TABLE} WHERE 1=1") + f" LIMIT {row_count}").df()
         st.dataframe(df_details)
         
-        # --- EXCEL EXPORT LOGIC ---
+        # EXCEL EXPORT
         output = io.BytesIO()
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
             df_details.to_excel(writer, index=False, sheet_name='Sheet1')
